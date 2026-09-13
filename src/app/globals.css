@@ -1,0 +1,268 @@
+@import "tailwindcss";
+
+:root {
+  --background: #020918;
+  --foreground: #f1f5f9;
+  --color-amber: #fb923c;
+  --color-cyan: #38bdf8;
+}
+
+
+html {
+  scroll-behavior: auto !important;
+  color-scheme: dark;
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+}
+
+body {
+  background: #020918;
+  color: #f1f5f9;
+  font-family: var(--font-sans), -apple-system, BlinkMacSystemFont, sans-serif;
+  overflow-x: hidden;
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+}
+
+.font-serif {
+  font-family: var(--font-serif), "Cormorant Garamond", Georgia, serif;
+}
+
+.font-sans {
+  font-family: var(--font-sans), sans-serif;
+}
+
+/* Simon Sparks Exact Radial Studio Lighting */
+.simon-sparks-bg {
+  background: radial-gradient(circle at 50% 45%, #103875 0%, #08224a 38%, #030f26 72%, #010612 100%);
+}
+
+/* Simon Sparks Signature Interactive Buttons */
+.btn-swiss {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.65rem 1.35rem;
+  border-radius: 9999px;
+  border: 1px solid rgba(56, 189, 248, 0.4);
+  background: rgba(6, 15, 40, 0.8);
+  color: #f1f5f9;
+  font-family: var(--font-sans), sans-serif;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 0 15px rgba(16, 56, 117, 0.25);
+}
+
+.btn-swiss:hover {
+  border-color: #38bdf8;
+  background: rgba(16, 56, 117, 0.85);
+  color: #ffffff;
+  box-shadow: 0 0 25px rgba(56, 189, 248, 0.4);
+  transform: translateY(-1px);
+}
+
+/* =========================================================================
+   SIMON SPARKS EXACT CINEMATIC MOTION BLUR & VELOCITY TRANSITIONS
+   (1:1 Match to Dribbble Reference original-8bb2193fbab4f9b1cac096f86b611e99.mp4)
+   - Clean canvas background (NO sliding curtain/overlay, NO laser lines)
+   - Vertical motion blur + velocity acceleration on exit
+   - Vertical motion blur + velocity deceleration on entrance
+   - 2.0s total choreography with stagger wave
+   ========================================================================= */
+
+/* =========================================================================
+   SIMON SPARKS ULTRA-SMOOTH HARDWARE-ACCELERATED SECTION TRANSITIONS
+   (Pure GPU Compositing, Zero Blur, Locked 60-120fps Silk)
+   ========================================================================= */
+
+/* =========================================================================
+   SIMON SPARKS EXACT 1:1 VELOCITY SECTION & PER-OBJECT CHOREOGRAPHY
+   (1:1 Match to original-8bb2193fbab4f9b1cac096f86b611e99.mp4 frames 68-120)
+   - Hero Exit:
+     * "ILLUSTRATION" dissolves upward fast (0.2s)
+     * "GENERATIVE DESIGN" dissolves downward fast (0.2s)
+     * "SIMON SPARKS" title rockets UP with velocity stretch (0.48s)
+     * 3D Ring follows right behind title into upper viewport (0.52s)
+   - Section 2 Cards Entrance:
+     * Center cards (GLOSTER, LINEA) lead the upward rise (delay: 40ms)
+     * Flank cards (STUDIO 74, CUBE 2.0) follow 45ms behind (delay: 85ms)
+     * Contour backdrop fades in softly after cards settle
+   ========================================================================= */
+
+:root {
+  --hp: 0;
+  --hero-opacity: 1;
+  --hero-ring-y: 0px;
+  --hero-title-y: 0px;
+  --hero-sub-y: 0px;
+  --hero-coord-y: 0px;
+  --wp: 0;
+  --card-center-y: 95px;
+  --card-flank-y: 120px;
+  --card-flank-opacity: 0;
+}
+
+/* =========================================================================
+   GSAP & LENIS HARDWARE-ACCELERATED COMPOSITOR RULES
+   (Pure GPU subpixel interpolation, zero layout thrashing, zero transition clash)
+   ========================================================================= */
+
+/* Ensure GSAP animated elements have independent GPU compositing layers */
+.gsap-gpu-layer,
+[data-gsap],
+.will-change-transform {
+  will-change: transform, opacity;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  transform: translate3d(0, 0, 0);
+}
+
+/* Prevent competing CSS transitions from fighting GSAP's subpixel interpolation */
+.no-transition {
+  transition: none !important;
+}
+
+/* Simon Sparks Progress Ring Animation (0% to 100% fill over 1 minute / 60 seconds) */
+@keyframes ring-progress-fill {
+  0% {
+    stroke-dashoffset: 59.7;
+  }
+  100% {
+    stroke-dashoffset: 0;
+  }
+}
+
+.animate-ring-fill {
+  animation: ring-progress-fill 60s linear forwards;
+}
+
+@keyframes ring-spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-ring-spin {
+  animation: ring-spin 2.6s linear infinite;
+}
+
+@keyframes ring-glow-pulse {
+  0%, 100% {
+    filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.95)) drop-shadow(0 0 14px rgba(56, 189, 248, 0.8));
+  }
+  50% {
+    filter: drop-shadow(0 0 10px rgba(255, 255, 255, 1)) drop-shadow(0 0 22px rgba(56, 189, 248, 1));
+  }
+}
+
+.animate-orb-glow {
+  animation: ring-glow-pulse 2s ease-in-out infinite;
+}
+
+/* Floor Occlusion Shadow beneath torus */
+.torus-floor-shadow {
+  background: radial-gradient(ellipse at 50% 50%, rgba(0, 0, 0, 0.85) 0%, rgba(2, 9, 24, 0) 70%);
+}
+
+/* =========================================================================
+   SIMON SPARKS BENTO CARDS HOVER & UNROLL ANIMATION
+   (1:1 Match to Dribbble Video Frame 130 - 210)
+   ========================================================================= */
+
+.bento-card-transition {
+  transition: min-height 0.45s cubic-bezier(0.16, 1, 0.3, 1),
+              height 0.45s cubic-bezier(0.16, 1, 0.3, 1),
+              border-color 0.35s cubic-bezier(0.16, 1, 0.3, 1),
+              background-color 0.35s cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.bento-artwork-slider {
+  transition: max-height 0.48s cubic-bezier(0.16, 1, 0.3, 1),
+              opacity 0.4s cubic-bezier(0.16, 1, 0.3, 1),
+              transform 0.48s cubic-bezier(0.16, 1, 0.3, 1),
+              margin 0.45s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.bento-monogram-slider {
+  transition: max-height 0.45s cubic-bezier(0.16, 1, 0.3, 1),
+              opacity 0.35s cubic-bezier(0.16, 1, 0.3, 1),
+              transform 0.45s cubic-bezier(0.16, 1, 0.3, 1),
+              margin 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes bentoBottomBarGlow {
+  0%, 100% {
+    box-shadow: 0 0 10px rgba(56, 189, 248, 0.85), 0 0 20px rgba(56, 189, 248, 0.45);
+    opacity: 0.9;
+  }
+  50% {
+    box-shadow: 0 0 16px rgba(56, 189, 248, 1), 0 0 30px rgba(56, 189, 248, 0.7);
+    opacity: 1;
+  }
+}
+
+.animate-bento-bar {
+  animation: bentoBottomBarGlow 2s ease-in-out infinite;
+}
+
+/* =========================================================================
+   HIDE ALL SCROLLBARS (CLEAN BORDERLESS IMMERSIVE PRESENTATION)
+   ========================================================================= */
+html,
+body,
+* {
+  -ms-overflow-style: none !important;  /* IE and Edge */
+  scrollbar-width: none !important;     /* Firefox */
+}
+
+::-webkit-scrollbar,
+*::-webkit-scrollbar {
+  display: none !important;             /* Chrome, Safari, Edge (Chromium) */
+  width: 0 !important;
+  height: 0 !important;
+  background: transparent !important;
+}
+/* =========================================================================
+   LENIS ULTRA-SMOOTH MODAL & POP-UP PRESENTATION
+   ========================================================================= */
+@keyframes modalBackdropFadeIn {
+  from {
+    opacity: 0;
+    backdrop-filter: blur(0px);
+  }
+  to {
+    opacity: 1;
+    backdrop-filter: blur(12px);
+  }
+}
+
+@keyframes modalCardSlideIn {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.modal-backdrop-smooth {
+  animation: modalBackdropFadeIn 0.32s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.modal-card-smooth {
+  animation: modalCardSlideIn 0.38s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.modal-inner-scroll {
+  overscroll-behavior: contain !important;
+  scroll-behavior: smooth !important;
+}
