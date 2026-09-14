@@ -527,6 +527,11 @@ export default function CategoryShowcasePage({
         });
       });
 
+      // Lock image position inside card: image must stay strictly anchored to card frame
+      document.querySelectorAll<HTMLElement>('.parallax-wrapper').forEach((w) => {
+        w.style.transform = 'scale(1.22)';
+      });
+
       // Synchronously set initial entry positions before browser paint
       if (topRowEls.length > 0) {
         gsap.set(topRowEls, { y: -350, opacity: 0 });
@@ -565,11 +570,7 @@ export default function CategoryShowcasePage({
             const cardCenterY = screenY + tile.height / 2;
             const dist = Math.hypot(cardCenterX - scX, cardCenterY - scY);
             tile.colorOverlayEl.style.opacity = dist < 70 ? '1' : '0';
-            const normX = (cardCenterX - scX) / scX;
-            const normY = (cardCenterY - scY) / scY;
-            const px = -normX * 24;
-            const py = -normY * 28;
-            tile.wrapperEl.style.transform = `scale(1.22) translate3d(${px.toFixed(1)}px, ${py.toFixed(1)}px, 0)`;
+            tile.wrapperEl.style.transform = 'scale(1.22)';
           });
           isTransitioningRef.current = false;
         },
@@ -774,6 +775,11 @@ export default function CategoryShowcasePage({
         }
       });
 
+      // Lock image position inside card: image must stay strictly anchored to card frame
+      document.querySelectorAll<HTMLElement>('.parallax-wrapper').forEach((w) => {
+        w.style.transform = 'scale(1.22)';
+      });
+
       const tl = gsap.timeline({
         onComplete: () => {
           // Pin the exact focal photo right in the center of the slider
@@ -783,6 +789,7 @@ export default function CategoryShowcasePage({
           targetPanRef.current = { x: targetSliderPanX, y: 0 };
 
           setViewMode('slider');
+          isTransitioningRef.current = false;
         },
       });
 
