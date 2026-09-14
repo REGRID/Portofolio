@@ -404,22 +404,11 @@ export default function CategoryShowcasePage({
             tile.dist = dist;
             tile.visible = true;
 
-            // In Slider view: dynamic subtle scale only once scrolling starts ("baru berubah perlahan saat sudah mulai di scroll")
-            if (viewMode === 'slider') {
-              let scrollScale = 1.0;
-              if (sliderHasScrolledRef.current && dist < 320) {
-                const t = dist / 320;
-                const factor = 0.5 * (1 + Math.cos(t * Math.PI));
-                scrollScale = 1.0 + 0.12 * factor;
-              }
-              tile.cardEl.style.transform = scrollScale !== 1.0 ? `scale(${scrollScale.toFixed(4)})` : '';
-              tile.cardEl.style.zIndex = dist < 70 ? '25' : '10';
-            } else {
-              // Grid mode: ensure 100% uniform card dimensions (zero pop-out, zero magnification)
-              if (!isTransitioningRef.current && tile.cardEl.style.transform) {
-                tile.cardEl.style.transform = '';
-              }
+            // Uniform card dimensions across both Grid & Slider (zero pop-out/magnification, just like in grid)
+            if (!isTransitioningRef.current && tile.cardEl.style.transform) {
+              tile.cardEl.style.transform = '';
             }
+            tile.cardEl.style.zIndex = '10';
 
             if (dist < minDist) {
               minDist = dist;
