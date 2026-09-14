@@ -129,8 +129,14 @@ export default function CategoryShowcasePage({
       cardEl: HTMLElement;
       wrapperEl: HTMLElement;
       colorOverlayEl: HTMLElement;
+      row: number;
+      col: number;
+      bx: number;
+      by: number;
+      projIdx: number;
       localX: number;
       localY: number;
+      strideShift: number;
       width: number;
       height: number;
       dist?: number;
@@ -186,60 +192,53 @@ export default function CategoryShowcasePage({
       cardEl: HTMLElement;
       wrapperEl: HTMLElement;
       colorOverlayEl: HTMLElement;
+      row: number;
+      col: number;
+      bx: number;
+      by: number;
+      projIdx: number;
       localX: number;
       localY: number;
+      strideShift: number;
       width: number;
       height: number;
+      dist?: number;
+      visible?: boolean;
     }> = [];
 
-    if (viewMode === 'grid') {
-      BLOCK_Y_OFFSETS.forEach((by) => {
-        BLOCK_X_OFFSETS.forEach((bx) => {
-          [0, 1, 2].forEach((row) => {
-            for (let col = 0; col < GRID_COLS; col++) {
-              const id = `grid_card_${bx}_${by}_${row}_${col}`;
-              const el = document.getElementById(id);
-              const wrapper = el?.querySelector<HTMLElement>('.parallax-wrapper');
-              const colorOverlay = el?.querySelector<HTMLElement>('.color-overlay');
-              if (el && wrapper && colorOverlay) {
-                tiles.push({
-                  cardEl: el,
-                  wrapperEl: wrapper,
-                  colorOverlayEl: colorOverlay,
-                  localX: bx * BLOCK_WIDTH + col * STEP_X,
-                  localY: by * BLOCK_HEIGHT + row * STEP_Y,
-                  width: TILE_WIDTH,
-                  height: TILE_HEIGHT,
-                });
-              }
+    BLOCK_Y_OFFSETS.forEach((by) => {
+      BLOCK_X_OFFSETS.forEach((bx) => {
+        [0, 1, 2].forEach((row) => {
+          for (let col = 0; col < GRID_COLS; col++) {
+            const id = `card_${bx}_${by}_${row}_${col}`;
+            const el = document.getElementById(id);
+            const wrapper = el?.querySelector<HTMLElement>('.parallax-wrapper');
+            const colorOverlay = el?.querySelector<HTMLElement>('.color-overlay');
+            if (el && wrapper && colorOverlay) {
+              const projIdx = (col + row * 6) % displayProjects.length;
+              tiles.push({
+                cardEl: el,
+                wrapperEl: wrapper,
+                colorOverlayEl: colorOverlay,
+                row,
+                col,
+                bx,
+                by,
+                projIdx,
+                localX: bx * BLOCK_WIDTH + col * STEP_X,
+                localY: by * BLOCK_HEIGHT + row * STEP_Y,
+                strideShift: (bx * 18 + col) * 105,
+                width: TILE_WIDTH,
+                height: TILE_HEIGHT,
+              });
             }
-          });
-        });
-      });
-    } else if (viewMode === 'slider') {
-      SLIDER_OFFSETS.forEach((so) => {
-        displayProjects.forEach((_, idx) => {
-          const id = `slider_card_${so}_${idx}`;
-          const el = document.getElementById(id);
-          const wrapper = el?.querySelector<HTMLElement>('.parallax-wrapper');
-          const colorOverlay = el?.querySelector<HTMLElement>('.color-overlay');
-          if (el && wrapper && colorOverlay) {
-            tiles.push({
-              cardEl: el,
-              wrapperEl: wrapper,
-              colorOverlayEl: colorOverlay,
-              localX: so * sliderBlockWidth + idx * SLIDER_STRIDE,
-              localY: 0,
-              width: SLIDER_CARD_WIDTH,
-              height: SLIDER_CARD_HEIGHT,
-            });
           }
         });
       });
-    }
+    });
 
     cachedTilesRef.current = tiles;
-  }, [viewMode, displayProjects, sliderBlockWidth]);
+  }, [displayProjects.length]);
 
   useEffect(() => {
     refreshCachedTiles();
@@ -335,20 +334,6 @@ export default function CategoryShowcasePage({
         const scX = window.innerWidth / 2;
         const scY = window.innerHeight / 2;
 
-        const wx =
-          viewMode === 'grid'
-            ? wrapRange(currentPanRef.current.x, BLOCK_WIDTH)
-            : wrapRange(currentPanRef.current.x, sliderBlockWidth);
-        const wy = viewMode === 'grid' ? wrapRange(currentPanRef.current.y, BLOCK_HEIGHT) : 0;
-
-        // Subpixel 0.001px precision for liquid-smooth minimal movements
-        if (viewMode === 'grid') {
-          canvasRef.current.style.transform = `translate3d(${wx.toFixed(3)}px, ${wy.toFixed(3)}px, 0)`;
-        } else if (viewMode === 'slider') {
-          canvasRef.current.style.transform = `translate3d(${wx.toFixed(3)}px, 0, 0)`;
-        }
-
-        // --- MULTI-PLANE CINEMA PARALLAX & PROXIMITY COLOR ENGINE ---
         let tiles = cachedTilesRef.current;
         if (tiles.length === 0) {
           refreshCachedTiles();
@@ -358,106 +343,139 @@ export default function CategoryShowcasePage({
         const lagX = Math.max(-16, Math.min(16, -velocityRef.current.vx * 16));
         const lagY = Math.max(-16, Math.min(16, -velocityRef.current.vy * 16));
 
-        // Proximity configuration:
-        // r0: Full 100% color zone when a card is centered (dist <= 65px)
-        // r1: Outer boundary where color reaches 0% (dist >= 500px)
-        const r0 = 65;
-        const r1 = 500;
-        const rDiff = r1 - r0;
+        if (viewMode === 'grid') {
+          const wx = wrapRange(currentPanRef.current.x, BLOCK_WIDTH);
+          const wy = wrapRange(currentPanRef.current.y, BLOCK_HEIGHT);
+          canvasRef.current.style.transform = `translate3d(${wx.toFixed(3)}px, ${wy.toFixed(3)}px, 0)`;
 
-        // First pass: calculate parallax, screen distances, and track closest card
-        let minDist = 9999;
-        let closestIdx = -1;
+          const r0 = 65;
+          const r1 = 500;
+          const rDiff = r1 - r0;
+          let minDist = 9999;
+          let closestIdx = -1;
 
-        for (let i = 0; i < tileCount; i++) {
-          const tile = tiles[i];
-          const isSlider = viewMode === 'slider';
-          const screenX = tile.localX + wx;
-          const screenY = isSlider ? scY - tile.height / 2 : tile.localY + wy;
+          for (let i = 0; i < tileCount; i++) {
+            const tile = tiles[i];
+            const screenX = tile.localX + wx;
+            const screenY = tile.localY + wy;
 
-          // Frustum culling: calculate parallax & color only for visible cards
-          if (
-            screenX > -tile.width &&
-            screenX < window.innerWidth + tile.width &&
-            screenY > -tile.height &&
-            screenY < window.innerHeight + tile.height
-          ) {
-            const cardCenterX = screenX + tile.width / 2;
-            const cardCenterY = isSlider ? scY : screenY + tile.height / 2;
+            if (
+              screenX > -tile.width &&
+              screenX < window.innerWidth + tile.width &&
+              screenY > -tile.height &&
+              screenY < window.innerHeight + tile.height
+            ) {
+              const cardCenterX = screenX + tile.width / 2;
+              const cardCenterY = screenY + tile.height / 2;
+              const normX = (cardCenterX - scX) / scX;
+              const normY = (cardCenterY - scY) / scY;
+              const px = -normX * 24 + lagX;
+              const py = -normY * 28 + lagY;
 
-            const normX = (cardCenterX - scX) / scX;
-            const normY = (cardCenterY - scY) / scY;
-            const distSq = normX * normX + normY * normY;
+              tile.wrapperEl.style.transform = `scale(1.22) translate3d(${px.toFixed(1)}px, ${py.toFixed(1)}px, 0)`;
+              tile.cardEl.style.opacity = '1';
+              tile.cardEl.style.pointerEvents = 'auto';
+              if (tile.cardEl.style.transform) {
+                tile.cardEl.style.transform = '';
+              }
 
-            // Optical parallax displacement + dynamic velocity momentum
-            const px = -normX * 24 + lagX;
-            const py = -normY * 28 + lagY;
+              const dist = Math.hypot(cardCenterX - scX, cardCenterY - scY);
+              tile.dist = dist;
+              tile.visible = true;
 
-            tile.wrapperEl.style.transform = `scale(1.22) translate3d(${px.toFixed(1)}px, ${py.toFixed(1)}px, 0)`;
+              if (dist < minDist) {
+                minDist = dist;
+                closestIdx = i;
+              }
+            } else {
+              tile.visible = false;
+              tile.colorOverlayEl.style.opacity = '0';
+            }
+          }
 
-            // Distance from card center to viewport center:
-            const dist =
-              viewMode === 'slider'
-                ? Math.abs(cardCenterX - scX)
-                : Math.hypot(cardCenterX - scX, cardCenterY - scY);
+          const tAllowance = Math.max(0, Math.min(1, (minDist - 55) / 150));
+          const otherCardAllowance = tAllowance * tAllowance * (3 - 2 * tAllowance);
 
-            tile.dist = dist;
-            tile.visible = true;
+          for (let i = 0; i < tileCount; i++) {
+            const tile = tiles[i];
+            if (!tile.visible || tile.dist === undefined) continue;
 
-            // In Slider view: dynamic subtle scale only once scrolling starts ("baru berubah perlahan saat sudah mulai di scroll")
-            if (viewMode === 'slider') {
+            const dist = tile.dist;
+            let baseFactor = 0;
+            if (dist <= r0) {
+              baseFactor = 1.0;
+            } else if (dist < r1) {
+              const t = (dist - r0) / rDiff;
+              baseFactor = 0.5 * (1 + Math.cos(t * Math.PI));
+            } else {
+              baseFactor = 0;
+            }
+
+            const finalFactor = i === closestIdx ? baseFactor : baseFactor * otherCardAllowance;
+            tile.colorOverlayEl.style.opacity = finalFactor.toFixed(3);
+          }
+        } else if (viewMode === 'slider') {
+          const wx = wrapRange(currentPanRef.current.x, sliderBlockWidth);
+          const wy = scY - (STEP_Y + STEP_Y / 2); // 712.5px
+          canvasRef.current.style.transform = `translate3d(${wx.toFixed(3)}px, ${wy.toFixed(3)}px, 0)`;
+
+          let minDist = 9999;
+          let closestIdx = -1;
+
+          for (let i = 0; i < tileCount; i++) {
+            const tile = tiles[i];
+            if (tile.row !== 1) {
+              tile.cardEl.style.opacity = '0';
+              tile.cardEl.style.pointerEvents = 'none';
+              tile.colorOverlayEl.style.opacity = '0';
+              continue;
+            }
+
+            tile.cardEl.style.opacity = '1';
+            tile.cardEl.style.pointerEvents = 'auto';
+
+            const screenX = tile.localX + tile.strideShift + wx;
+            if (
+              screenX > -SLIDER_CARD_WIDTH &&
+              screenX < window.innerWidth + SLIDER_CARD_WIDTH
+            ) {
+              const cardCenterX = screenX + SLIDER_CARD_WIDTH / 2;
+              const normX = (cardCenterX - scX) / scX;
+              const px = -normX * 24 + lagX;
+
+              tile.wrapperEl.style.transform = `scale(1.22) translate3d(${px.toFixed(1)}px, 0, 0)`;
+
+              const dist = Math.abs(cardCenterX - scX);
+              tile.dist = dist;
+              tile.visible = true;
+
               let scrollScale = 1.0;
               if (sliderHasScrolledRef.current && dist < 320) {
                 const t = dist / 320;
                 const factor = 0.5 * (1 + Math.cos(t * Math.PI));
                 scrollScale = 1.0 + 0.12 * factor;
               }
-              tile.cardEl.style.transform = scrollScale !== 1.0 ? `scale(${scrollScale.toFixed(4)})` : '';
+
+              const targetScaleX = (SLIDER_CARD_WIDTH / TILE_WIDTH) * scrollScale;
+              const targetScaleY = (SLIDER_CARD_HEIGHT / TILE_HEIGHT) * scrollScale;
+              tile.cardEl.style.transform = `translate3d(${tile.strideShift}px, 0, 0) scale(${targetScaleX.toFixed(4)}, ${targetScaleY.toFixed(4)})`;
               tile.cardEl.style.zIndex = dist < 70 ? '25' : '10';
-            } else {
-              // Grid mode: ensure 100% uniform card dimensions (zero pop-out, zero magnification)
-              if (!isTransitioningRef.current && tile.cardEl.style.transform) {
-                tile.cardEl.style.transform = '';
+
+              if (dist < minDist) {
+                minDist = dist;
+                closestIdx = i;
               }
+            } else {
+              tile.visible = false;
+              tile.colorOverlayEl.style.opacity = '0';
             }
-
-            if (dist < minDist) {
-              minDist = dist;
-              closestIdx = i;
-            }
-          } else {
-            tile.visible = false;
-            tile.colorOverlayEl.style.opacity = '0';
-          }
-        }
-
-        // Allowance for other (non-closest) cards:
-        // When 1 card is centered (minDist <= 55px): otherCardAllowance = 0.0 -> ONLY 1 card is colored!
-        // When panning towards 4-grid intersection (minDist increases):
-        // otherCardAllowance opens up to 1.0 so all 4 cards show their soft color!
-        const tAllowance = Math.max(0, Math.min(1, (minDist - 55) / 150));
-        const otherCardAllowance = tAllowance * tAllowance * (3 - 2 * tAllowance);
-
-        // Second pass: apply proximity color with center isolation
-        for (let i = 0; i < tileCount; i++) {
-          const tile = tiles[i];
-          if (!tile.visible || tile.dist === undefined) continue;
-
-          const dist = tile.dist;
-          let baseFactor = 0;
-          if (dist <= r0) {
-            baseFactor = 1.0;
-          } else if (dist < r1) {
-            const t = (dist - r0) / rDiff;
-            baseFactor = 0.5 * (1 + Math.cos(t * Math.PI));
-          } else {
-            baseFactor = 0;
           }
 
-          // If closest card: full baseFactor (100% when centered)
-          // If other card: scaled by otherCardAllowance (0% when 1 card is centered)
-          const finalFactor = i === closestIdx ? baseFactor : baseFactor * otherCardAllowance;
-          tile.colorOverlayEl.style.opacity = finalFactor.toFixed(3);
+          for (let i = 0; i < tileCount; i++) {
+            const tile = tiles[i];
+            if (tile.row !== 1 || !tile.visible || tile.dist === undefined) continue;
+            tile.colorOverlayEl.style.opacity = i === closestIdx && tile.dist < 70 ? '1' : '0';
+          }
         }
       }
 
@@ -477,175 +495,7 @@ export default function CategoryShowcasePage({
     }, 160);
   }, []);
 
-  // Choreographed Grid <-> Slider transition with anchored focal photo, row dispersal & zoom
-  useIsomorphicLayoutEffect(() => {
-    refreshCachedTiles();
-
-    if (viewMode === 'grid' && transitionDirectionRef.current === 'slider-to-grid') {
-      transitionDirectionRef.current = null;
-      sliderHasScrolledRef.current = false;
-
-      const scX = window.innerWidth / 2;
-      const scY = window.innerHeight / 2;
-
-      const scaleX = SLIDER_CARD_WIDTH / TILE_WIDTH; // 450 / 345 = 1.3043
-      const scaleY = SLIDER_CARD_HEIGHT / TILE_HEIGHT; // 620 / 475 = 1.3052
-
-      const topRowEls: HTMLElement[] = [];
-      const bottomRowEls: HTMLElement[] = [];
-      const middleRowTiles: Array<{
-        cardEl: HTMLElement;
-        initialX: number;
-        deltaCol: number;
-      }> = [];
-      const allCards: HTMLElement[] = [];
-
-      const curWx = wrapRange(currentPanRef.current.x, BLOCK_WIDTH);
-      const curWy = wrapRange(currentPanRef.current.y, BLOCK_HEIGHT);
-
-      BLOCK_Y_OFFSETS.forEach((by) => {
-        BLOCK_X_OFFSETS.forEach((bx) => {
-          [0, 1, 2].forEach((row) => {
-            for (let col = 0; col < GRID_COLS; col++) {
-              const el = document.getElementById(`grid_card_${bx}_${by}_${row}_${col}`);
-              if (!el) continue;
-              allCards.push(el);
-
-              const localY = by * BLOCK_HEIGHT + row * STEP_Y;
-              const screenY = localY + curWy;
-              const centerY = screenY + TILE_HEIGHT / 2;
-              const dy = centerY - scY;
-
-              if (dy < -TILE_HEIGHT * 0.45) {
-                topRowEls.push(el);
-              } else if (dy > TILE_HEIGHT * 0.45) {
-                bottomRowEls.push(el);
-              } else {
-                // Exact middle horizontal row
-                const localX = bx * BLOCK_WIDTH + col * STEP_X;
-                const screenX = localX + curWx;
-                const centerX = screenX + TILE_WIDTH / 2;
-                const deltaCol = Math.round((centerX - scX) / STEP_X);
-                const initialOffset = deltaCol * (SLIDER_STRIDE - STEP_X);
-
-                middleRowTiles.push({
-                  cardEl: el,
-                  initialX: initialOffset,
-                  deltaCol,
-                });
-              }
-            }
-          });
-        });
-      });
-
-      // Synchronously set initial entry positions before browser paint
-      if (topRowEls.length > 0) {
-        gsap.set(topRowEls, { y: -350, opacity: 0 });
-      }
-      if (bottomRowEls.length > 0) {
-        gsap.set(bottomRowEls, { y: 350, opacity: 0 });
-      }
-      middleRowTiles.forEach((m) => {
-        m.cardEl.style.zIndex = String(30 - Math.min(10, Math.abs(m.deltaCol)));
-        gsap.set(m.cardEl, {
-          x: m.initialX,
-          y: 0,
-          scaleX: scaleX,
-          scaleY: scaleY,
-          transformOrigin: 'center center',
-        });
-        const overlay = m.cardEl.querySelector<HTMLElement>('.color-overlay');
-        if (overlay) {
-          overlay.style.opacity = m.deltaCol === 0 ? '1' : '0';
-        }
-      });
-
-      // Animate seamlessly from slider configuration into rest grid layout (Zoom Out)
-      const tl = gsap.timeline({
-        onComplete: () => {
-          allCards.forEach((c) => {
-            gsap.set(c, { clearProps: 'transform,opacity,zIndex' });
-          });
-          refreshCachedTiles();
-          const scX = window.innerWidth / 2;
-          const scY = window.innerHeight / 2;
-          cachedTilesRef.current.forEach((tile) => {
-            const screenX = tile.localX + wrapRange(currentPanRef.current.x, BLOCK_WIDTH);
-            const screenY = tile.localY + wrapRange(currentPanRef.current.y, BLOCK_HEIGHT);
-            const cardCenterX = screenX + tile.width / 2;
-            const cardCenterY = screenY + tile.height / 2;
-            const dist = Math.hypot(cardCenterX - scX, cardCenterY - scY);
-            tile.colorOverlayEl.style.opacity = dist < 70 ? '1' : '0';
-            const normX = (cardCenterX - scX) / scX;
-            const normY = (cardCenterY - scY) / scY;
-            const px = -normX * 24;
-            const py = -normY * 28;
-            tile.wrapperEl.style.transform = `scale(1.22) translate3d(${px.toFixed(1)}px, ${py.toFixed(1)}px, 0)`;
-          });
-          isTransitioningRef.current = false;
-        },
-      });
-
-      if (topRowEls.length > 0) {
-        tl.to(
-          topRowEls,
-          {
-            y: 0,
-            opacity: 1,
-            duration: 0.8,
-            ease: 'power3.inOut',
-          },
-          0
-        );
-      }
-
-      if (bottomRowEls.length > 0) {
-        tl.to(
-          bottomRowEls,
-          {
-            y: 0,
-            opacity: 1,
-            duration: 0.8,
-            ease: 'power3.inOut',
-          },
-          0
-        );
-      }
-
-      middleRowTiles.forEach((m) => {
-        tl.to(
-          m.cardEl,
-          {
-            x: 0,
-            y: 0,
-            scaleX: 1,
-            scaleY: 1,
-            duration: 0.8,
-            ease: 'power3.inOut',
-          },
-          0
-        );
-      });
-    } else if (viewMode === 'slider') {
-      sliderHasScrolledRef.current = false;
-      refreshCachedTiles();
-      const scX = window.innerWidth / 2;
-      cachedTilesRef.current.forEach((tile) => {
-        const screenX = tile.localX + wrapRange(currentPanRef.current.x, sliderBlockWidth);
-        const cardCenterX = screenX + tile.width / 2;
-        const dist = Math.abs(cardCenterX - scX);
-        tile.colorOverlayEl.style.opacity = dist < 70 ? '1' : '0';
-        const normX = (cardCenterX - scX) / scX;
-        const px = -normX * 24;
-        tile.wrapperEl.style.transform = `scale(1.22) translate3d(${px.toFixed(1)}px, 0, 0)`;
-        tile.cardEl.style.transform = '';
-      });
-      isTransitioningRef.current = false;
-    }
-  }, [viewMode, displayProjects, refreshCachedTiles, sliderBlockWidth]);
-
-  // View switcher with custom anchored row dispersal & zoom choreography
+  // View switcher with unified in-place anchored row dispersal & zoom choreography
   const switchViewMode = useCallback((newMode: 'grid' | 'slider' | 'list') => {
     if (newMode === viewMode || isTransitioningRef.current) return;
 
@@ -686,161 +536,133 @@ export default function CategoryShowcasePage({
     }
 
     // =========================================================================
-    // BIDIRECTIONAL CHOREOGRAPHY: GRID <-> SLIDER
+    // BIDIRECTIONAL UNIFIED IN-PLACE CHOREOGRAPHY: GRID <-> SLIDER
     // 1. Center photo remains strictly anchored as the key focal card
     // 2. Left & right neighbors in the middle row stay preserved in exact order
     // 3. Top and bottom rows disperse away with ease-in-out
     // 4. Middle row zooms smoothly to slider default size (and vice versa)
+    // 5. 100% PERSISTENT DOM: Zero elements unmounted, zero texture unbinding
     // =========================================================================
-
     isTransitioningRef.current = true;
     sliderHasScrolledRef.current = false;
 
     if (viewMode === 'grid' && newMode === 'slider') {
       // --- MODE 1: GRID -> SLIDER ---
-      const wx = wrapRange(currentPanRef.current.x, BLOCK_WIDTH);
-      const wy = wrapRange(currentPanRef.current.y, BLOCK_HEIGHT);
+      const curWx = wrapRange(currentPanRef.current.x, BLOCK_WIDTH);
+      const curWy = wrapRange(currentPanRef.current.y, BLOCK_HEIGHT);
 
-      type GridTileItem = {
-        cardEl: HTMLElement;
-        idx: number;
-        centerX: number;
-        centerY: number;
-      };
+      // Find the card in Row 1 closest to viewport center (scX, scY)
+      let minRow1Dist = 999999;
+      let focalCardCol = 0;
 
-      let minDist = 999999;
-      let focalTile: GridTileItem | null = null;
-
-      const visibleGridTiles: GridTileItem[] = [];
-
-      BLOCK_Y_OFFSETS.forEach((by) => {
-        BLOCK_X_OFFSETS.forEach((bx) => {
-          [0, 1, 2].forEach((row) => {
-            for (let col = 0; col < GRID_COLS; col++) {
-              const el = document.getElementById(`grid_card_${bx}_${by}_${row}_${col}`);
-              if (!el) continue;
-              const rect = el.getBoundingClientRect();
-
-              if (
-                rect.right > -100 &&
-                rect.left < window.innerWidth + 100 &&
-                rect.bottom > -100 &&
-                rect.top < window.innerHeight + 100
-              ) {
-                const centerX = rect.left + rect.width / 2;
-                const centerY = rect.top + rect.height / 2;
-                const dist = Math.hypot(centerX - scX, centerY - scY);
-                const projIdx = (col + row * 6) % displayProjects.length;
-
-                const item: GridTileItem = { cardEl: el, idx: projIdx, centerX, centerY };
-                visibleGridTiles.push(item);
-
-                if (dist < minDist) {
-                  minDist = dist;
-                  focalTile = item;
-                }
-              }
-            }
-          });
-        });
+      cachedTilesRef.current.forEach((tile) => {
+        if (tile.row === 1 && tile.bx === 0) {
+          const screenX = tile.localX + curWx;
+          const cardCenterX = screenX + tile.width / 2;
+          const dist = Math.abs(cardCenterX - scX);
+          if (dist < minRow1Dist) {
+            minRow1Dist = dist;
+            focalCardCol = tile.col;
+          }
+        }
       });
 
-      const focalItem = focalTile as GridTileItem | null;
-      if (!focalItem) {
-        isTransitioningRef.current = false;
-        setViewMode('slider');
-        return;
-      }
+      // Target slider pan such that card focalCardCol is centered at scX
+      const rawTargetSliderPanX = scX - SLIDER_CARD_WIDTH / 2 - focalCardCol * SLIDER_STRIDE;
+      const targetSliderPanX = wrapRange(rawTargetSliderPanX, sliderBlockWidth);
+      const targetCanvasY = scY - (STEP_Y + STEP_Y / 2); // 712.5px centers Row 1 vertically
 
-      const focalCenterY = focalItem.centerY;
-      const focalCenterX = focalItem.centerX;
-      const focalIdx = focalItem.idx;
-
-      const topRowEls: HTMLElement[] = [];
-      const bottomRowEls: HTMLElement[] = [];
-      const middleRowTiles: Array<{
+      const topRowCards: HTMLElement[] = [];
+      const bottomRowCards: HTMLElement[] = [];
+      const middleRowCards: Array<{
         cardEl: HTMLElement;
-        deltaCol: number;
-        currentCenterX: number;
-        currentCenterY: number;
+        colorOverlayEl: HTMLElement;
+        strideShift: number;
+        isFocal: boolean;
       }> = [];
 
-      const scaleX = SLIDER_CARD_WIDTH / TILE_WIDTH;
-      const scaleY = SLIDER_CARD_HEIGHT / TILE_HEIGHT;
-
-      visibleGridTiles.forEach((tile) => {
-        const dy = tile.centerY - focalCenterY;
-        if (dy < -TILE_HEIGHT * 0.45) {
-          topRowEls.push(tile.cardEl);
-        } else if (dy > TILE_HEIGHT * 0.45) {
-          bottomRowEls.push(tile.cardEl);
-        } else {
-          const dx = tile.centerX - focalCenterX;
-          const deltaCol = Math.round(dx / STEP_X);
-          middleRowTiles.push({
+      cachedTilesRef.current.forEach((tile) => {
+        if (tile.row === 0) {
+          topRowCards.push(tile.cardEl);
+        } else if (tile.row === 2) {
+          bottomRowCards.push(tile.cardEl);
+        } else if (tile.row === 1) {
+          middleRowCards.push({
             cardEl: tile.cardEl,
-            deltaCol,
-            currentCenterX: tile.centerX,
-            currentCenterY: tile.centerY,
+            colorOverlayEl: tile.colorOverlayEl,
+            strideShift: tile.strideShift,
+            isFocal: tile.col === focalCardCol && tile.bx === 0,
           });
         }
       });
 
+      const canvasAnim = {
+        x: curWx,
+        y: curWy,
+      };
+
       const tl = gsap.timeline({
         onComplete: () => {
-          // Pin the exact focal photo right in the center of the slider
-          const rawTargetX = scX - SLIDER_CARD_WIDTH / 2 - focalIdx * SLIDER_STRIDE;
-          const targetSliderPanX = wrapRange(rawTargetX, sliderBlockWidth);
           currentPanRef.current = { x: targetSliderPanX, y: 0 };
           targetPanRef.current = { x: targetSliderPanX, y: 0 };
-
+          viewModeRef.current = 'slider';
           setViewMode('slider');
+          isTransitioningRef.current = false;
         },
       });
 
-      // Top row disperses upwards away with ease-in-out
-      if (topRowEls.length > 0) {
-        tl.to(
-          topRowEls,
-          {
-            y: -350,
-            opacity: 0,
-            duration: 0.8,
-            ease: 'power3.inOut',
+      // Disperse top row upwards with ease-in-out
+      tl.to(
+        topRowCards,
+        {
+          y: -350,
+          opacity: 0,
+          duration: 0.8,
+          ease: 'power3.inOut',
+        },
+        0
+      );
+
+      // Disperse bottom row downwards with ease-in-out
+      tl.to(
+        bottomRowCards,
+        {
+          y: 350,
+          opacity: 0,
+          duration: 0.8,
+          ease: 'power3.inOut',
+        },
+        0
+      );
+
+      // Animate canvas position smoothly to slider center
+      tl.to(
+        canvasAnim,
+        {
+          x: targetSliderPanX,
+          y: targetCanvasY,
+          duration: 0.8,
+          ease: 'power3.inOut',
+          onUpdate: () => {
+            if (canvasRef.current) {
+              canvasRef.current.style.transform = `translate3d(${canvasAnim.x.toFixed(3)}px, ${canvasAnim.y.toFixed(3)}px, 0)`;
+            }
           },
-          0
-        );
-      }
+        },
+        0
+      );
 
-      // Bottom row disperses downwards away with ease-in-out
-      if (bottomRowEls.length > 0) {
-        tl.to(
-          bottomRowEls,
-          {
-            y: 350,
-            opacity: 0,
-            duration: 0.8,
-            ease: 'power3.inOut',
-          },
-          0
-        );
-      }
+      // Animate middle row cards: zoom in to slider dimensions & expand stride seamlessly
+      const targetScaleX = SLIDER_CARD_WIDTH / TILE_WIDTH; // 1.3043478
+      const targetScaleY = SLIDER_CARD_HEIGHT / TILE_HEIGHT; // 1.3052632
 
-      // Middle row zooms in smoothly to default slider dimensions and stride
-      middleRowTiles.forEach((m) => {
-        m.cardEl.style.zIndex = String(30 - Math.min(10, Math.abs(m.deltaCol)));
-        const targetCenterX = scX + m.deltaCol * SLIDER_STRIDE;
-        const targetCenterY = scY;
-        const moveX = targetCenterX - m.currentCenterX;
-        const moveY = targetCenterY - m.currentCenterY;
-
+      middleRowCards.forEach((m) => {
         tl.to(
           m.cardEl,
           {
-            x: moveX,
-            y: moveY,
-            scaleX: scaleX,
-            scaleY: scaleY,
+            x: m.strideShift,
+            scaleX: targetScaleX,
+            scaleY: targetScaleY,
             transformOrigin: 'center center',
             duration: 0.8,
             ease: 'power3.inOut',
@@ -848,58 +670,150 @@ export default function CategoryShowcasePage({
           0
         );
 
-
-        // Keep focal photo fully colored, neighbor cards soft
-        const overlay = m.cardEl.querySelector<HTMLElement>('.color-overlay');
-        if (overlay) {
-          tl.to(
-            overlay,
-            {
-              opacity: m.deltaCol === 0 ? 1 : 0,
-              duration: 0.8,
-              ease: 'power3.inOut',
-            },
-            0
-          );
-        }
+        tl.to(
+          m.colorOverlayEl,
+          {
+            opacity: m.isFocal ? 1 : 0,
+            duration: 0.8,
+            ease: 'power3.inOut',
+          },
+          0
+        );
       });
 
     } else if (viewMode === 'slider' && newMode === 'grid') {
       // --- MODE 2: SLIDER -> GRID ---
-      const wx = wrapRange(currentPanRef.current.x, sliderBlockWidth);
+      const curSliderPanX = wrapRange(currentPanRef.current.x, sliderBlockWidth);
 
-      let minDist = 999999;
-      let centerIdx = 0;
+      // Find the card in Row 1 currently closest to scX
+      let minSliderDist = 999999;
+      let centerCol = 0;
 
-      SLIDER_OFFSETS.forEach((so) => {
-        displayProjects.forEach((_, idx) => {
-          const el = document.getElementById(`slider_card_${so}_${idx}`);
-          if (!el) return;
-          const rect = el.getBoundingClientRect();
-          const centerX = rect.left + rect.width / 2;
-          const dist = Math.abs(centerX - scX);
-          if (dist < minDist) {
-            minDist = dist;
-            centerIdx = idx;
+      cachedTilesRef.current.forEach((tile) => {
+        if (tile.row === 1 && tile.bx === 0) {
+          const screenX = tile.localX + tile.strideShift + curSliderPanX;
+          const cardCenterX = screenX + SLIDER_CARD_WIDTH / 2;
+          const dist = Math.abs(cardCenterX - scX);
+          if (dist < minSliderDist) {
+            minSliderDist = dist;
+            centerCol = tile.col;
           }
-        });
+        }
       });
 
-      // Pin the exact center photo to the center of the grid in Row 1 (the middle row)
-      // Row 1 has projIdx = (col + 6) % 18, so col = (centerIdx - 6 + 18) % 18
-      const col = (centerIdx - 6 + displayProjects.length) % displayProjects.length;
-      const row = 1;
+      // Target grid pan such that Row 1 card centerCol is centered at (scX, scY)
+      const rawTargetGridX = scX - TILE_WIDTH / 2 - centerCol * STEP_X;
+      const targetGridX = wrapRange(rawTargetGridX, BLOCK_WIDTH);
+      const rawTargetGridY = scY - TILE_HEIGHT / 2 - 1 * STEP_Y;
+      const targetGridY = wrapRange(rawTargetGridY, BLOCK_HEIGHT);
 
-      const gridSnapX = scX - TILE_WIDTH / 2 - col * STEP_X;
-      const gridSnapY = scY - TILE_HEIGHT / 2 - row * STEP_Y;
+      const topRowCards: HTMLElement[] = [];
+      const bottomRowCards: HTMLElement[] = [];
+      const middleRowCards: Array<{
+        cardEl: HTMLElement;
+        colorOverlayEl: HTMLElement;
+        isCenter: boolean;
+      }> = [];
 
-      currentPanRef.current = { x: gridSnapX, y: gridSnapY };
-      targetPanRef.current = { x: gridSnapX, y: gridSnapY };
+      cachedTilesRef.current.forEach((tile) => {
+        if (tile.row === 0) {
+          topRowCards.push(tile.cardEl);
+        } else if (tile.row === 2) {
+          bottomRowCards.push(tile.cardEl);
+        } else if (tile.row === 1) {
+          middleRowCards.push({
+            cardEl: tile.cardEl,
+            colorOverlayEl: tile.colorOverlayEl,
+            isCenter: tile.col === centerCol && tile.bx === 0,
+          });
+        }
+      });
 
-      transitionDirectionRef.current = 'slider-to-grid';
-      setViewMode('grid');
+      const canvasAnim = {
+        x: curSliderPanX,
+        y: scY - (STEP_Y + STEP_Y / 2),
+      };
+
+      const tl = gsap.timeline({
+        onComplete: () => {
+          currentPanRef.current = { x: targetGridX, y: targetGridY };
+          targetPanRef.current = { x: targetGridX, y: targetGridY };
+          viewModeRef.current = 'grid';
+          setViewMode('grid');
+          middleRowCards.forEach((m) => {
+            gsap.set(m.cardEl, { clearProps: 'transform,zIndex' });
+          });
+          isTransitioningRef.current = false;
+        },
+      });
+
+      // Return top row to grid
+      tl.to(
+        topRowCards,
+        {
+          y: 0,
+          opacity: 1,
+          duration: 0.8,
+          ease: 'power3.inOut',
+        },
+        0
+      );
+
+      // Return bottom row to grid
+      tl.to(
+        bottomRowCards,
+        {
+          y: 0,
+          opacity: 1,
+          duration: 0.8,
+          ease: 'power3.inOut',
+        },
+        0
+      );
+
+      // Animate canvas position smoothly from slider pan to grid pan
+      tl.to(
+        canvasAnim,
+        {
+          x: targetGridX,
+          y: targetGridY,
+          duration: 0.8,
+          ease: 'power3.inOut',
+          onUpdate: () => {
+            if (canvasRef.current) {
+              canvasRef.current.style.transform = `translate3d(${canvasAnim.x.toFixed(3)}px, ${canvasAnim.y.toFixed(3)}px, 0)`;
+            }
+          },
+        },
+        0
+      );
+
+      // Zoom out middle row cards back to grid dimensions & 345 stride
+      middleRowCards.forEach((m) => {
+        tl.to(
+          m.cardEl,
+          {
+            x: 0,
+            scaleX: 1,
+            scaleY: 1,
+            duration: 0.8,
+            ease: 'power3.inOut',
+          },
+          0
+        );
+
+        tl.to(
+          m.colorOverlayEl,
+          {
+            opacity: m.isCenter ? 1 : 0,
+            duration: 0.8,
+            ease: 'power3.inOut',
+          },
+          0
+        );
+      });
     }
-  }, [viewMode, displayProjects, sliderBlockWidth]);
+  }, [viewMode, sliderBlockWidth]);
 
   // Native Hardware-Accelerated Free Drag & Wheel Engine (Bypasses React SyntheticEvents)
   useEffect(() => {
@@ -1204,19 +1118,19 @@ export default function CategoryShowcasePage({
       </header>
 
       {/* 3. MAIN INTERACTIVE 2D CANVASES */}
-      {/* MODE A: INFINITE 2D FREE-DRAG CANVAS GRID (Hardware-Accelerated Tapestry with Dynamic Proximity Color) */}
-      {viewMode === 'grid' && (
+      {/* 3. MAIN INTERACTIVE 2D CANVASES (Unified Persistent Canvas: Grid & Slider share exact same 54 cards) */}
+      {(viewMode === 'grid' || viewMode === 'slider') && (
         <div
           ref={canvasRef}
           className="absolute inset-0 w-full h-full will-change-transform"
           style={{
-            transform: `translate3d(${wrapRange(currentPanRef.current.x, BLOCK_WIDTH).toFixed(3)}px, ${wrapRange(currentPanRef.current.y, BLOCK_HEIGHT).toFixed(3)}px, 0)`,
+            transform: `translate3d(${wrapRange(currentPanRef.current.x, viewMode === 'slider' ? sliderBlockWidth : BLOCK_WIDTH).toFixed(3)}px, ${viewMode === 'slider' ? (typeof window !== 'undefined' ? (window.innerHeight / 2 - 712.5).toFixed(3) : '0') : wrapRange(currentPanRef.current.y, BLOCK_HEIGHT).toFixed(3)}px, 0)`,
           }}
         >
           {BLOCK_Y_OFFSETS.map((by) =>
             BLOCK_X_OFFSETS.map((bx) => (
               <div
-                key={`grid_block_${bx}_${by}`}
+                key={`block_${bx}_${by}`}
                 className="absolute"
                 style={{
                   left: `${bx * BLOCK_WIDTH}px`,
@@ -1232,13 +1146,13 @@ export default function CategoryShowcasePage({
                     if (!project) return null;
                     return (
                       <div
-                        id={`grid_card_${bx}_${by}_${row}_${col}`}
-                        key={`grid_card_${bx}_${by}_${row}_${col}_${project.id}`}
+                        id={`card_${bx}_${by}_${row}_${col}`}
+                        key={`card_${bx}_${by}_${row}_${col}`}
                         onClick={(e) =>
                           handleProjectClick(
                             e,
                             project,
-                            `grid_card_${bx}_${by}_${row}_${col}`
+                            `card_${bx}_${by}_${row}_${col}`
                           )
                         }
                         className="gallery-card-item cinema-card-tile absolute overflow-hidden bg-black select-none"
@@ -1275,64 +1189,6 @@ export default function CategoryShowcasePage({
               </div>
             ))
           )}
-        </div>
-      )}
-
-      {/* MODE B: INFINITE SLIDER VIEW (Horizontal Filmstrip Carousel with Dynamic Proximity Color) */}
-      {viewMode === 'slider' && (
-        <div
-          ref={canvasRef}
-          className="absolute inset-0 w-full h-full flex items-center will-change-transform"
-          style={{
-            transform: `translate3d(${wrapRange(currentPanRef.current.x, sliderBlockWidth).toFixed(3)}px, 0, 0)`,
-          }}
-        >
-          {SLIDER_OFFSETS.map((so) => (
-            <div
-              key={`slider_block_${so}`}
-              className="absolute flex items-center select-none"
-              style={{
-                left: `${so * sliderBlockWidth}px`,
-                width: `${sliderBlockWidth}px`,
-              }}
-            >
-              {displayProjects.map((project, idx) => (
-                <div
-                  id={`slider_card_${so}_${idx}`}
-                  key={`slider_card_${so}_${project.id}_${idx}`}
-                  data-flip-id={so === 0 ? `card-${project.id}` : undefined}
-                  onClick={(e) =>
-                    handleProjectClick(e, project, `slider_card_${so}_${idx}`)
-                  }
-                  className="gallery-card-item cinema-card-tile relative flex-shrink-0 overflow-hidden bg-black select-none"
-                  style={{
-                    width: `${SLIDER_CARD_WIDTH}px`,
-                    height: `${SLIDER_CARD_HEIGHT}px`,
-                  }}
-                >
-                  <div
-                    className="parallax-wrapper w-full h-full relative will-change-transform"
-                    style={{ transform: 'scale(1.22)' }}
-                  >
-                    <img
-                      src={project.thumbnail}
-                      alt={project.title}
-                      draggable={false}
-                      className="monochrome-base w-full h-full object-cover pointer-events-none"
-                    />
-                    <div className="color-overlay absolute inset-0 w-full h-full pointer-events-none opacity-0 will-change-opacity">
-                      <img
-                        src={project.thumbnail}
-                        alt=""
-                        draggable={false}
-                        className="color-img w-full h-full object-cover pointer-events-none"
-                      />
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ))}
         </div>
       )}
 
