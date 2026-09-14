@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import Lenis from 'lenis';
 import Snap from 'lenis/snap';
 import gsap from 'gsap';
@@ -48,11 +49,119 @@ interface Project {
 }
 
 export default function PortfolioPage() {
+  const router = useRouter();
   const [projects, setProjects] = useState<Project[]>([]);
   const [selectedVideo, setSelectedVideo] = useState<Project | null>(null);
+  const [isVideoClosing, setIsVideoClosing] = useState(false);
   const [isCvOpen, setIsCvOpen] = useState(false);
+  const [isCvClosing, setIsCvClosing] = useState(false);
   const [isContactOpen, setIsContactOpen] = useState(false);
   const [loading, setLoading] = useState(true);
+
+  // Cinema Zoom-In Portal Transition State
+  const [zoomingPortal, setZoomingPortal] = useState<{
+    slug: string;
+    title: string;
+    image: string;
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    isDiving: boolean;
+  } | null>(null);
+
+  const handleCardCategoryClick = useCallback((card: {
+    id: number;
+    slug: string;
+    title: string;
+    image: string;
+  }, e: React.MouseEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+
+    setZoomingPortal({
+      slug: card.slug,
+      title: card.title,
+      image: card.image,
+      x: rect.left,
+      y: rect.top,
+      width: rect.width,
+      height: rect.height,
+      isDiving: false,
+    });
+
+    // In next tick, trigger acceleration into screen center with smooth cinematic curve
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        setZoomingPortal((prev) => (prev ? { ...prev, isDiving: true } : null));
+      });
+    });
+
+    // Navigate to category showcase page at peak of dive (1000ms for luxurious cinematic pace)
+    setTimeout(() => {
+      router.push(`/work/${card.slug}`);
+    }, 1000);
+
+    // Clean up
+    setTimeout(() => {
+      setZoomingPortal(null);
+    }, 1900);
+  }, [router]);
+
+  // Transitions.dev Toast State
+  const [toast, setToast] = useState<{ show: boolean; message: string; type: 'success' | 'info' }>({
+    show: false,
+    message: '',
+    type: 'success',
+  });
+
+  const triggerToast = useCallback((message: string, type: 'success' | 'info' = 'success') => {
+    setToast({ show: true, message, type });
+    setTimeout(() => {
+      setToast((prev) => ({ ...prev, show: false }));
+    }, 3800);
+  }, []);
+
+  // Transitions.dev Asymmetric Modal Close Handlers (open: 250ms, close: 150ms)
+  const closeCvModal = useCallback(() => {
+    setIsCvClosing(true);
+    setTimeout(() => {
+      setIsCvOpen(false);
+      setIsCvClosing(false);
+    }, 150);
+  }, []);
+
+  const closeVideoModal = useCallback(() => {
+    setIsVideoClosing(true);
+    setTimeout(() => {
+      setSelectedVideo(null);
+      setIsVideoClosing(false);
+    }, 150);
+  }, []);
+
+  // Transitions.dev 3D Card Hover Tilt with Pointer-Tracked Glare (19-card-tilt.md)
+  const handleTiltMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    const el = e.currentTarget;
+    const rect = el.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    const px = Math.min(100, Math.max(0, (x / rect.width) * 100));
+    const py = Math.min(100, Math.max(0, (y / rect.height) * 100));
+    const rx = ((y - rect.height / 2) / (rect.height / 2)) * -8.5;
+    const ry = ((x - rect.width / 2) / (rect.width / 2)) * 8.5;
+
+    el.style.setProperty('--tilt-rx', `${rx.toFixed(2)}deg`);
+    el.style.setProperty('--tilt-ry', `${ry.toFixed(2)}deg`);
+    el.style.setProperty('--tilt-gx', `${px.toFixed(1)}%`);
+    el.style.setProperty('--tilt-gy', `${py.toFixed(1)}%`);
+    el.classList.add('is-tilting', 'is-hover');
+  }, []);
+
+  const handleTiltLeave = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    const el = e.currentTarget;
+    el.style.setProperty('--tilt-rx', '0deg');
+    el.style.setProperty('--tilt-ry', '0deg');
+    el.classList.remove('is-tilting', 'is-hover');
+  }, []);
 
   // Recruiter Contact Form State
   const [recruiterForm, setRecruiterForm] = useState({
@@ -64,18 +173,81 @@ export default function PortfolioPage() {
     message: '',
   });
   const [submitting, setSubmitting] = useState(false);
+  const [isFormShaking, setIsFormShaking] = useState(false);
   const [formFeedback, setFormFeedback] = useState<{ success?: boolean; message?: string } | null>(null);
+
+  const DEFAULT_PORTFOLIO_WORKS: Project[] = [
+    {
+      id: 1,
+      title: 'Commercial & Brand Film',
+      slug: 'commercial-brand-film',
+      client: 'Commercial & TVC Productions',
+      category: 'Commercial',
+      video_url: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
+      thumbnail_url: '/reference_assets/card_studio74_art.jpg',
+      duration: '01:15',
+      year: '2024',
+      description: 'High-impact commercial video editing and cinematography featuring dynamic speed ramps, rhythmic sound design, and color grading calibrated for luxury and automotive brand aesthetics.',
+      tags: ['Commercial', 'Brand Campaign', 'DaVinci Resolve', 'Premiere Pro', 'Sound Design'],
+      featured: true,
+    },
+    {
+      id: 2,
+      title: 'Narrative & Documentary Story',
+      slug: 'narrative-documentary-story',
+      client: 'Independent Film & Documentary',
+      category: 'Narrative',
+      video_url: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4',
+      thumbnail_url: '/reference_assets/card_gloster_art.jpg',
+      duration: '04:45',
+      year: '2024',
+      description: 'Deep emotional narrative pacing, patient cut sequencing, and nuanced dialogue balancing. Crafted to immerse viewers into authentic real-life stories.',
+      tags: ['Short Film', 'Documentary', 'Cinematography', 'Color Science', 'Storytelling'],
+      featured: false,
+    },
+    {
+      id: 3,
+      title: 'Cinematic Music Video',
+      slug: 'cinematic-music-video',
+      client: 'Artist & Music Label Production',
+      category: 'Music Video',
+      video_url: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
+      thumbnail_url: '/reference_assets/card_linea_fluid.png',
+      duration: '03:20',
+      year: '2024',
+      description: 'Frame-accurate rhythm cutting with custom motion transitions, film grain textures, and stylized anamorphic aspect ratio emulation.',
+      tags: ['Music Video', 'Rhythm Cut', 'Stylized Grade', 'After Effects', 'Sound Sync'],
+      featured: false,
+    },
+    {
+      id: 4,
+      title: 'Cinematography Reel & Event Highlights',
+      slug: 'cinematography-reel-events',
+      client: 'Annual Showreel & Festival Aftermovie',
+      category: 'Event & Reel',
+      video_url: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4',
+      thumbnail_url: '/reference_assets/card_cube_art.jpg',
+      duration: '02:10',
+      year: '2024',
+      description: 'Comprehensive showreel demonstrating cinematic camera movement, gimbal stabilization, lighting mastery, and high-tempo editorial sequencing.',
+      tags: ['Showreel', 'Event Aftermovie', '4K Cinema', 'Gimbal Rig', 'Festival Highlight'],
+      featured: false,
+    },
+  ];
 
   useEffect(() => {
     async function loadProjects() {
       try {
         const res = await fetch('/api/projects');
         const data = await res.json();
-        if (data.success && data.data) {
+        if (data.success && data.data && data.data.length > 0) {
           setProjects(data.data);
+        } else {
+          setProjects(DEFAULT_PORTFOLIO_WORKS);
         }
       } catch (err) {
         console.error('Gagal memuat proyek:', err);
+        setProjects(DEFAULT_PORTFOLIO_WORKS);
       } finally {
         setLoading(false);
       }
@@ -146,7 +318,7 @@ export default function PortfolioPage() {
     { id: 'contact', label: '04', title: 'Contact' },
   ];
   const [activePageIndex, setActivePageIndex] = useState(0);
-  const [activeCardIndex, setActiveCardIndex] = useState<number>(2); // Default to card 03 (LINEA VOL. 1) as in video
+  const [activeCardIndex, setActiveCardIndex] = useState<number | null>(null);
 
   const activePageIndexRef = useRef(0);
   const isTransitioningRef = useRef(false);
@@ -629,41 +801,43 @@ export default function PortfolioPage() {
 
           {/* TYPOGRAPHY OVERLAY */}
           <div className="relative z-20 -mt-18 sm:-mt-22 md:-mt-26 lg:-mt-28 flex flex-col items-center text-center px-4 w-full select-none will-change-transform">
-            {/* Line 1: ILLUSTRATION */}
+            {/* Line 1: CINEMATOGRAPHY with Transitions.dev Shimmer */}
             <div
-              className="hero-anim-item hero-illustration text-[10px] sm:text-xs font-sans tracking-[0.48em] sm:tracking-[0.58em] text-white uppercase mb-1.5 sm:mb-2 font-semibold select-none drop-shadow-[0_2px_12px_rgba(0,0,0,0.9)] will-change-transform"
+              className="hero-anim-item hero-illustration text-[10px] sm:text-xs font-sans tracking-[0.44em] sm:tracking-[0.54em] uppercase mb-1.5 sm:mb-2 font-semibold select-none drop-shadow-[0_2px_12px_rgba(0,0,0,0.9)] will-change-transform"
             >
-              I L L U S T R A T I O N
+              <span className="t-shimmer text-white" data-text="C I N E M A T O G R A P H Y">
+                C I N E M A T O G R A P H Y
+              </span>
             </div>
 
-            {/* Line 2: SIMON SPARKS Headline */}
+            {/* Line 2: REFO GANGGAWASA UTOMO Headline */}
             <h1
-              onClick={() => setHeroTitle((prev) => prev === "SIMON SPARKS" ? "REFO GANGGAWASA UTOMO" : "SIMON SPARKS")}
-              className="hero-anim-item hero-title font-serif text-[clamp(2.2rem,5.6vw,4.8rem)] font-light tracking-[0.02em] text-white uppercase leading-none whitespace-nowrap drop-shadow-[0_12px_45px_rgba(0,0,0,0.95)] cursor-pointer select-none hover:brightness-110 active:scale-[0.99] will-change-transform"
-              title="Klik untuk beralih antara SIMON SPARKS / REFO GANGGAWASA UTOMO"
+              className="hero-anim-item hero-title font-serif text-[clamp(1.75rem,4.4vw,3.9rem)] font-light tracking-[0.03em] text-white uppercase leading-none whitespace-nowrap drop-shadow-[0_12px_45px_rgba(0,0,0,0.95)] select-none will-change-transform"
             >
-              {heroTitle}
+              REFO GANGGAWASA UTOMO
             </h1>
 
-            {/* Line 3: Symmetrical Triangle & GENERATIVE DESIGN */}
+            {/* Line 3: Symmetrical Triangle & VIDEO EDITOR with Transitions.dev Shimmer */}
             <div
               className="hero-anim-item hero-subtitle flex flex-col items-center will-change-transform"
             >
               <div className="my-1.5 sm:my-2 text-white/90 text-[8px] sm:text-[9px] select-none">
                 ▲
               </div>
-              <div className="text-[10px] sm:text-xs font-sans tracking-[0.38em] sm:tracking-[0.46em] text-[#f3bd8b] uppercase font-bold drop-shadow-[0_2px_12px_rgba(0,0,0,0.9)]">
-                G E N E R A T I V E   D E S I G N
+              <div className="text-[10px] sm:text-xs font-sans tracking-[0.38em] sm:tracking-[0.46em] uppercase font-bold drop-shadow-[0_2px_12px_rgba(0,0,0,0.9)]">
+                <span className="t-shimmer text-[#f3bd8b] whitespace-pre" data-text="V I D E O   E D I T O R">
+                  {"V I D E O   E D I T O R"}
+                </span>
               </div>
             </div>
           </div>
 
         </section>
 
-        {/* 3. WORK / PORTFOLIO SECTION (02 WORK) */}
+        {/* 3. WORK / PORTFOLIO SECTION (02 WORK) - 4 CARDS DEAD-CENTER IN VIEWPORT */}
         <section
           id="portfolio"
-          className="absolute inset-0 w-full h-full flex flex-col justify-center items-center px-4 sm:px-8 md:px-12 select-none will-change-transform overflow-y-auto no-scrollbar"
+          className="absolute inset-0 w-full h-full flex items-center justify-center px-4 sm:px-8 md:px-12 select-none will-change-transform overflow-hidden"
           style={{
             opacity: 0,
             visibility: 'hidden',
@@ -671,9 +845,12 @@ export default function PortfolioPage() {
             transform: 'translate3d(0, 90px, 0)',
           }}
         >
-          {/* 4-COLUMN BENTO SHOWCASE (1:1 REPLICATION FROM SIMON SPARKS VIDEO FRAME 095 - 220) - CENTERED IN VIEWPORT */}
-          <div className="w-full h-full flex flex-col justify-center items-center px-4 sm:px-8 md:px-12 py-8">
-            <div className="relative w-full max-w-6xl mx-auto">
+          {/* 4-COLUMN BENTO SHOWCASE (1:1 REPLICATION FROM SIMON SPARKS) - CENTERED IN VIEWPORT */}
+          <div
+            onMouseLeave={() => setActiveCardIndex(null)}
+            className="relative w-full max-w-6xl mx-auto flex items-center justify-center"
+          >
+            <div className="relative w-full">
               {/* Ambient Contour Wireframe Backdrop with Topographic Hairlines */}
               <div
                 className="absolute inset-0 border border-cyan-900/30 rounded-2xl pointer-events-none -m-3 sm:-m-4 overflow-hidden will-change-transform"
@@ -691,82 +868,120 @@ export default function PortfolioPage() {
                 </svg>
 
                 {/* Dynamic Radial Glow that tracks active card */}
-                {activeCardIndex !== null && (
-                  <div
-                    className="absolute top-1/2 -translate-y-1/2 w-80 h-96 bg-cyan-500/12 blur-3xl rounded-full transition-all duration-700 pointer-events-none"
-                    style={{
-                      left: `${(activeCardIndex * 25) + 12.5}%`,
-                      transform: 'translate(-50%, -50%)',
-                    }}
-                  />
-                )}
+                <div
+                  className={`absolute top-1/2 -translate-y-1/2 w-80 h-96 bg-cyan-500/12 blur-3xl rounded-full transition-all duration-700 pointer-events-none ${
+                    activeCardIndex !== null ? 'opacity-100' : 'opacity-0'
+                  }`}
+                  style={{
+                    left: `${activeCardIndex !== null ? (activeCardIndex * 25) + 12.5 : 50}%`,
+                    transform: 'translate(-50%, -50%)',
+                  }}
+                />
               </div>
               <div
                 className="absolute inset-x-8 top-0 h-[1px] bg-gradient-to-r from-transparent via-cyan-500/30 to-transparent pointer-events-none"
               />
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 items-center">
+              <div
+                onMouseLeave={() => setActiveCardIndex(null)}
+                className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 items-center"
+              >
                 {[
                   {
                     id: 0,
-                    title: 'STUDIO 74',
+                    slug: 'commercial',
+                    title: 'COMMERCIAL',
                     indexStr: '01',
                     image: '/reference_assets/card_studio74_art.jpg',
                     projectIndex: 0,
                     staggerNext: 0,
                     staggerPrev: 4,
                     monogram: (
-                      <svg viewBox="0 0 100 100" className="w-full h-full fill-current">
-                        <polygon points="12,18 52,18 36,82 18,82 30,34 12,34" />
-                        <polygon points="56,38 88,38 88,52 74,52 74,82 58,82 58,52 48,52 48,38" />
+                      <svg viewBox="0 0 100 100" className="w-full h-full fill-none stroke-current" strokeLinecap="round">
+                        <circle cx="50" cy="50" r="42" strokeWidth="1.5" opacity="0.3" strokeDasharray="3 3" />
+                        <circle cx="50" cy="50" r="36" strokeWidth="2.5" />
+                        <polygon points="50,23 73,36 73,64 50,77 27,64 27,36" strokeWidth="1.2" opacity="0.4" />
+                        <line x1="50" y1="14" x2="65" y2="40" strokeWidth="2.2" />
+                        <line x1="81" y1="32" x2="65" y2="60" strokeWidth="2.2" />
+                        <line x1="81" y1="68" x2="50" y2="86" strokeWidth="2.2" />
+                        <line x1="50" y1="86" x2="35" y2="60" strokeWidth="2.2" />
+                        <line x1="19" y1="68" x2="35" y2="40" strokeWidth="2.2" />
+                        <line x1="19" y1="32" x2="50" y2="14" strokeWidth="2.2" />
+                        <circle cx="50" cy="50" r="8" fill="currentColor" opacity="0.85" />
                       </svg>
                     ),
                   },
                   {
                     id: 1,
-                    title: 'GLOSTER',
+                    slug: 'narrative',
+                    title: 'NARRATIVE',
                     indexStr: '02',
                     image: '/reference_assets/card_gloster_art.jpg',
                     projectIndex: 1,
                     staggerNext: 1,
                     staggerPrev: 3,
                     monogram: (
-                      <svg viewBox="0 0 100 100" className="w-full h-full fill-current">
-                        <path d="M50,15 C66,15 78,27 78,43 C78,57 68,67 55,70 C65,72 74,78 74,87 C74,95 65,99 50,99 C34,99 22,89 22,76 C22,63 32,56 46,54 C36,51 30,44 30,35 C30,22 40,15 50,15 Z M50,30 C44,30 39,34 39,41 C39,48 44,52 50,52 C56,52 61,48 61,41 C61,34 56,30 50,30 Z M49,67 C40,67 33,71 33,77 C33,83 40,86 49,86 C58,86 64,83 64,77 C64,71 58,67 49,67 Z" />
-                        <circle cx="84" cy="24" r="5" />
+                      <svg viewBox="0 0 100 100" className="w-full h-full fill-none stroke-current" strokeLinecap="round" strokeLinejoin="round">
+                        <rect x="16" y="38" width="68" height="46" rx="4" strokeWidth="2.5" />
+                        <line x1="16" y1="52" x2="84" y2="52" strokeWidth="1.8" opacity="0.6" />
+                        <line x1="50" y1="52" x2="50" y2="84" strokeWidth="1.8" opacity="0.6" />
+                        <circle cx="33" cy="68" r="3" fill="currentColor" />
+                        <circle cx="67" cy="68" r="3" fill="currentColor" />
+                        <rect x="14" y="20" width="72" height="15" rx="3" strokeWidth="2.5" />
+                        <line x1="28" y1="20" x2="36" y2="35" strokeWidth="2.2" />
+                        <line x1="44" y1="20" x2="52" y2="35" strokeWidth="2.2" />
+                        <line x1="60" y1="20" x2="68" y2="35" strokeWidth="2.2" />
+                        <line x1="76" y1="20" x2="84" y2="35" strokeWidth="2.2" />
                       </svg>
                     ),
                   },
                   {
                     id: 2,
-                    title: 'LINEA VOL.1',
+                    slug: 'music-video',
+                    title: 'MUSIC VIDEO',
                     indexStr: '03',
                     image: '/reference_assets/card_linea_fluid.png',
                     projectIndex: 2,
                     staggerNext: 2,
                     staggerPrev: 2,
                     monogram: (
-                      <svg viewBox="0 0 100 100" className="w-full h-full fill-none stroke-current stroke-[7]">
-                        <path d="M22,25 Q65,25 75,50 Q65,75 22,75" strokeLinecap="round" />
-                        <path d="M32,35 Q60,35 68,50 Q60,65 32,65" strokeLinecap="round" />
-                        <path d="M42,45 Q55,45 61,50 Q55,55 42,55" strokeLinecap="round" />
+                      <svg viewBox="0 0 100 100" className="w-full h-full fill-none stroke-current" strokeLinecap="round">
+                        <circle cx="50" cy="50" r="42" strokeWidth="1.5" opacity="0.3" strokeDasharray="3 3" />
+                        <line x1="18" y1="46" x2="18" y2="54" strokeWidth="3" />
+                        <line x1="26" y1="38" x2="26" y2="62" strokeWidth="3" />
+                        <line x1="34" y1="28" x2="34" y2="72" strokeWidth="3" />
+                        <line x1="42" y1="18" x2="42" y2="82" strokeWidth="3.2" />
+                        <line x1="50" y1="12" x2="50" y2="88" strokeWidth="3.5" />
+                        <line x1="58" y1="22" x2="58" y2="78" strokeWidth="3.2" />
+                        <line x1="66" y1="32" x2="66" y2="68" strokeWidth="3" />
+                        <line x1="74" y1="40" x2="74" y2="60" strokeWidth="3" />
+                        <line x1="82" y1="47" x2="82" y2="53" strokeWidth="3" />
                       </svg>
                     ),
                   },
                   {
                     id: 3,
-                    title: 'CUBE 2.0',
+                    slug: 'event-reel',
+                    title: 'EVENT & REEL',
                     indexStr: '04',
                     image: '/reference_assets/card_cube_art.jpg',
                     projectIndex: 3,
                     staggerNext: 3,
                     staggerPrev: 1,
                     monogram: (
-                      <svg viewBox="0 0 100 100" className="w-full h-full fill-current">
-                        <polygon points="50,15 85,35 85,50 50,30 15,50 15,35" />
-                        <polygon points="85,60 85,75 50,95 50,80 75,65" />
-                        <polygon points="15,60 15,75 50,95 50,80 25,65" />
-                        <polygon points="35,42 65,42 65,58 35,58" />
+                      <svg viewBox="0 0 100 100" className="w-full h-full fill-none stroke-current" strokeLinecap="round" strokeLinejoin="round">
+                        <circle cx="50" cy="50" r="40" strokeWidth="2.5" />
+                        <circle cx="50" cy="50" r="33" strokeWidth="1.5" strokeDasharray="4 4" opacity="0.4" />
+                        <circle cx="50" cy="50" r="14" strokeWidth="2.2" />
+                        <circle cx="50" cy="50" r="5" fill="currentColor" />
+                        <circle cx="50" cy="27" r="5" strokeWidth="1.8" />
+                        <circle cx="73" cy="50" r="5" strokeWidth="1.8" />
+                        <circle cx="50" cy="73" r="5" strokeWidth="1.8" />
+                        <circle cx="27" cy="50" r="5" strokeWidth="1.8" />
+                        <line x1="50" y1="10" x2="50" y2="20" strokeWidth="2" />
+                        <line x1="90" y1="50" x2="80" y2="50" strokeWidth="2" />
+                        <line x1="50" y1="90" x2="50" y2="80" strokeWidth="2" />
+                        <line x1="10" y1="50" x2="20" y2="50" strokeWidth="2" />
                       </svg>
                     ),
                   },
@@ -777,18 +992,20 @@ export default function PortfolioPage() {
                     <div
                       key={card.id}
                       onMouseEnter={() => setActiveCardIndex(card.id)}
-                      onClick={() => {
-                        const proj = projects[card.projectIndex] || projects[0];
-                        if (proj) setSelectedVideo(proj);
-                      }}
-                      className={`bento-anim-card relative rounded-xl border bento-card-transition cursor-pointer overflow-hidden flex flex-col justify-between p-5 sm:p-6 will-change-transform ${
+                      onPointerMove={handleTiltMove}
+                      onPointerLeave={handleTiltLeave}
+                      onClick={(e) => handleCardCategoryClick(card, e)}
+                      className={`t-tilt bento-anim-card relative rounded-xl border bento-card-transition cursor-pointer overflow-hidden flex flex-col justify-between p-5 sm:p-6 will-change-transform ${
                         isActive
-                          ? 'border-cyan-400/90 bg-[#081538] shadow-[0_12px_45px_rgba(56,189,248,0.35)] z-20 min-h-[460px] sm:min-h-[490px]'
-                          : 'border-cyan-900/40 bg-[#060f28]/90 hover:border-cyan-500/50 hover:bg-[#081538]/80 min-h-[350px] sm:min-h-[380px] z-10'
+                          ? 'border-cyan-400/90 bg-[#081538] shadow-[0_12px_45px_rgba(56,189,248,0.35)] z-20 min-h-[450px] sm:min-h-[475px]'
+                          : 'border-cyan-900/40 bg-[#060f28]/90 hover:border-cyan-500/50 hover:bg-[#081538]/80 min-h-[350px] sm:min-h-[375px] z-10'
                       }`}
                     >
+                      {/* Transitions.dev 3D Pointer Glare */}
+                      <div className="t-tilt-glare" />
+
                       {/* Top Inverted Triangle Marker (Fades out smoothly when card is active) */}
-                      <div className={`flex justify-center transition-all duration-300 text-[10px] ${
+                      <div className={`flex justify-center transition-all duration-300 text-[10px] relative z-10 ${
                         isActive ? 'opacity-0 -translate-y-2 pointer-events-none' : 'text-cyan-400/50 opacity-100 translate-y-0'
                       }`}>
                         ▼
@@ -830,7 +1047,7 @@ export default function PortfolioPage() {
                       </div>
 
                       {/* Typography & Index */}
-                      <div className="text-center mt-2 select-none">
+                      <div className="text-center mt-2 select-none relative z-10">
                         <h4 className={`font-mono text-xs tracking-[0.25em] font-bold uppercase transition-colors duration-300 ${
                           isActive ? 'text-white drop-shadow-[0_2px_12px_rgba(56,189,248,0.4)]' : 'text-white/85'
                         }`}>
@@ -860,85 +1077,7 @@ export default function PortfolioPage() {
               </div>
             </div>
           </div>
-
-
-        {/* SCENE 3 DETAIL SHOWCASE: ART UNBOUND ODYSSEY (1:1 REPLICATION FROM VIDEO FRAME 240 - 300, Stagger Delay 1.2s next / 0s prev) */}
-        <div className="w-full px-4 sm:px-8 md:px-12 pb-24">
-          <div className={`relative w-full max-w-6xl mx-auto border-t border-cyan-900/40 pt-16 mt-4 ${getStaggerClass(1, 4, 0)}`}>
-            <div className="relative p-6 sm:p-10 lg:p-14 rounded-2xl border border-cyan-900/40 bg-[#060f28]/95 overflow-hidden shadow-2xl">
-              {/* Subtle Background Radial & Topographic Hairlines */}
-              <div className="absolute -top-32 -right-32 w-96 h-96 rounded-full bg-cyan-500/10 blur-3xl pointer-events-none" />
-              <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(ellipse_70%_50%_at_70%_50%,rgba(16,56,117,0.25)_0%,transparent_100%)]" />
-
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-14 items-center">
-                
-                {/* SISI KIRI: BINGKAI EMAS GRADASI DENGAN SENI BOLA 3D PARTIKEL (EXACT TO VIDEO) */}
-                <div className="lg:col-span-6 flex justify-center">
-                  <div className="relative p-1.5 sm:p-2 rounded-lg bg-gradient-to-tr from-[#b88246] via-[#f3bd8b] to-[#735227] shadow-[0_15px_50px_rgba(0,0,0,0.9)] max-w-[380px] w-full">
-                    <div className="relative aspect-[3/4] w-full rounded overflow-hidden bg-black">
-                      <img
-                        src="/reference_assets/scene3_spheres.png"
-                        alt="Art Unbound Odyssey 3D Spheres Sculpture"
-                        className="w-full h-full object-cover object-center filter contrast-[1.08] hover:scale-105 transition-transform duration-700"
-                      />
-                      {/* Subtle Ambient Vignette */}
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent pointer-events-none" />
-                    </div>
-                  </div>
-                </div>
-
-                {/* SISI KANAN: BADGE STUDIO, TIPOGRAFI ART UNBOUND ODYSSEY, & PERSONAL PROJECT */}
-                <div className="lg:col-span-6 flex flex-col items-center lg:items-start text-center lg:text-left">
-                  
-                  {/* Badge Lingkaran Studio / Simon Sparks Aperture Badge */}
-                  <div className="relative w-12 h-12 sm:w-14 sm:h-14 rounded-full border border-cyan-400/50 bg-[#061433] flex items-center justify-center mb-8 shadow-[0_0_24px_rgba(56,189,248,0.35)] group cursor-pointer">
-                    <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-[#103875] via-cyan-600 to-[#f3bd8b] opacity-90 group-hover:scale-110 transition-transform flex items-center justify-center shadow-inner">
-                      <span className="text-[10px] text-white font-bold">▲</span>
-                    </div>
-                  </div>
-
-                  {/* Main Headline: ART UNBOUND ODYSSEY */}
-                  <h2 className="font-serif text-4xl sm:text-6xl lg:text-7xl font-light tracking-[0.03em] text-white uppercase leading-[1.06]">
-                    ART<br />
-                    UNBOUND<br />
-                    <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-300 via-[#abc8e6] to-[#f3bd8b]">
-                      ODYSSEY
-                    </span>
-                  </h2>
-
-                  {/* Divider Triangle & Subtitle */}
-                  <div className="mt-8 flex flex-col items-center lg:items-start gap-2">
-                    <span className="text-cyan-400 text-[9px]">▼</span>
-                    <div className="text-[11px] font-mono tracking-[0.38em] text-[#f3bd8b] uppercase font-bold">
-                      P E R S O N A L   P R O J E C T
-                    </div>
-                  </div>
-
-                  {/* Narrative Description */}
-                  <p className="mt-5 text-xs sm:text-sm text-[#abc8e6]/90 leading-relaxed max-w-md font-light">
-                    Karya eksplorasi visual 3D dan narrative editing mendalam. Menggabungkan tekstur partikel organik dengan pencahayaan sinematik yang dirancang untuk menyampaikan impresi emosional tanpa batas.
-                  </p>
-
-                  {/* CTA Button */}
-                  <div className="mt-8">
-                    {featuredProject && (
-                      <button
-                        onClick={() => setSelectedVideo(featuredProject)}
-                        className="btn-swiss cursor-pointer"
-                      >
-                        <span>EXPLORE CASE STUDY</span>
-                        <span className="text-cyan-400">▸</span>
-                      </button>
-                    )}
-                  </div>
-
-                </div>
-
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
+        </section>
 
         {/* 4. RECRUITMENT & EXPERIENCE (03 SHOP) */}
         <section
@@ -1261,20 +1400,24 @@ export default function PortfolioPage() {
 
       </main>
 
-      {/* 10. VIDEO PLAYER MODAL (LENIS ISOLATED & ULTRA-SMOOTH) */}
+      {/* 10. VIDEO PLAYER MODAL (TRANSITIONS.DEV ASYMMETRIC OPEN/CLOSE 06-modal.md) */}
       {selectedVideo && (
         <div
           data-lenis-prevent="true"
           data-lenis-prevent-wheel="true"
           data-lenis-prevent-touch="true"
           onClick={(e) => {
-            if (e.target === e.currentTarget) setSelectedVideo(null);
+            if (e.target === e.currentTarget) closeVideoModal();
           }}
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md modal-backdrop-smooth select-none"
+          className={`fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md select-none t-modal-backdrop ${
+            isVideoClosing ? 'is-closing' : 'is-open'
+          }`}
         >
           <div
             data-lenis-prevent="true"
-            className="relative w-full max-w-4xl rounded-2xl overflow-hidden bg-[#060f28] border border-cyan-500/40 shadow-[0_0_60px_rgba(16,56,117,0.6)] flex flex-col modal-card-smooth select-auto"
+            className={`relative w-full max-w-4xl rounded-2xl overflow-hidden bg-[#060f28] border border-cyan-500/40 shadow-[0_0_60px_rgba(16,56,117,0.6)] flex flex-col select-auto t-modal ${
+              isVideoClosing ? 'is-closing' : 'is-open'
+            }`}
           >
             <div className="px-6 py-4 border-b border-cyan-900/40 flex items-center justify-between bg-[#040a1c]">
               <div>
@@ -1286,7 +1429,7 @@ export default function PortfolioPage() {
                 </h3>
               </div>
               <button
-                onClick={() => setSelectedVideo(null)}
+                onClick={closeVideoModal}
                 className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-all duration-300 hover:scale-105 cursor-pointer"
                 aria-label="Close Video Player"
               >
@@ -1333,20 +1476,24 @@ export default function PortfolioPage() {
         </div>
       )}
 
-      {/* 11. RECRUITER CV / RESUME MODAL (LENIS ISOLATED & ULTRA-SMOOTH) */}
+      {/* 11. RECRUITER CV / RESUME MODAL (TRANSITIONS.DEV ASYMMETRIC OPEN/CLOSE 06-modal.md) */}
       {isCvOpen && (
         <div
           data-lenis-prevent="true"
           data-lenis-prevent-wheel="true"
           data-lenis-prevent-touch="true"
           onClick={(e) => {
-            if (e.target === e.currentTarget) setIsCvOpen(false);
+            if (e.target === e.currentTarget) closeCvModal();
           }}
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md overflow-y-auto modal-backdrop-smooth modal-inner-scroll select-none"
+          className={`fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md overflow-y-auto modal-inner-scroll select-none t-modal-backdrop ${
+            isCvClosing ? 'is-closing' : 'is-open'
+          }`}
         >
           <div
             data-lenis-prevent="true"
-            className="relative w-full max-w-2xl rounded-2xl overflow-hidden bg-[#060f28] border border-cyan-500/40 shadow-[0_0_60px_rgba(16,56,117,0.6)] p-6 sm:p-8 text-left my-8 modal-card-smooth select-auto"
+            className={`relative w-full max-w-2xl rounded-2xl overflow-hidden bg-[#060f28] border border-cyan-500/40 shadow-[0_0_60px_rgba(16,56,117,0.6)] p-6 sm:p-8 text-left my-8 select-auto t-modal ${
+              isCvClosing ? 'is-closing' : 'is-open'
+            }`}
           >
             <div className="flex items-center justify-between border-b border-cyan-900/40 pb-5 mb-6">
               <div>
@@ -1361,7 +1508,7 @@ export default function PortfolioPage() {
                 </p>
               </div>
               <button
-                onClick={() => setIsCvOpen(false)}
+                onClick={closeCvModal}
                 className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-all duration-300 hover:scale-105 cursor-pointer"
                 aria-label="Close CV Modal"
               >
@@ -1429,19 +1576,96 @@ export default function PortfolioPage() {
                   href="https://wa.me/6281234567890"
                   target="_blank"
                   rel="noopener noreferrer"
+                  onClick={() => triggerToast('Membuka WhatsApp Refo...', 'info')}
                   className="px-4 py-2 rounded-full text-xs font-mono tracking-wider uppercase text-cyan-300 bg-[#061433] border border-cyan-500/40 hover:bg-cyan-900/50 transition-colors"
                 >
                   WhatsApp Langsung
                 </a>
                 <a
                   href="#contact"
-                  onClick={() => setIsCvOpen(false)}
+                  onClick={closeCvModal}
                   className="btn-swiss text-xs py-2 px-4"
                 >
                   Schedule Call ▸
                 </a>
               </div>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* 12. TRANSITIONS.DEV TOAST NOTIFICATION (22-toast.md) */}
+      <div
+        className={`fixed bottom-6 right-6 z-50 max-w-sm px-4 py-3 rounded-xl border flex items-center gap-3 shadow-2xl backdrop-blur-md select-none t-toast pointer-events-none ${
+          toast.show ? 'is-open' : ''
+        } ${
+          toast.type === 'success'
+            ? 'bg-[#061433]/95 border-cyan-400/60 text-cyan-200 shadow-[0_0_30px_rgba(56,189,248,0.35)]'
+            : 'bg-[#181126]/95 border-amber-400/60 text-amber-200 shadow-[0_0_30px_rgba(251,146,60,0.35)]'
+        }`}
+      >
+        <span className="w-2 h-2 rounded-full bg-cyan-400 animate-pulse shrink-0" />
+        <span className="font-mono text-xs tracking-wide">{toast.message}</span>
+      </div>
+
+      {/* 13. CINEMA ZOOM-IN PORTAL TRANSITION OVERLAY (AWWWARDS CAMERA DIVE) */}
+      {zoomingPortal && (
+        <div
+          className="fixed inset-0 z-50 pointer-events-none overflow-hidden flex items-center justify-center select-none"
+          style={{
+            backgroundColor: zoomingPortal.isDiving ? 'rgba(3, 8, 26, 0.98)' : 'rgba(3, 8, 26, 0)',
+            transition: 'background-color 1.1s cubic-bezier(0.65, 0, 0.15, 1)',
+          }}
+        >
+          {/* Zooming Card Clone diving into screen center */}
+          <div
+            className="rounded-xl overflow-hidden border border-cyan-400 shadow-[0_0_80px_rgba(56,189,248,0.85)] will-change-transform"
+            style={{
+              position: 'fixed',
+              left: zoomingPortal.isDiving ? '50%' : `${zoomingPortal.x}px`,
+              top: zoomingPortal.isDiving ? '50%' : `${zoomingPortal.y}px`,
+              width: `${zoomingPortal.width}px`,
+              height: `${zoomingPortal.height}px`,
+              transform: zoomingPortal.isDiving
+                ? 'translate(-50%, -50%) scale(16)'
+                : 'translate(0, 0) scale(1)',
+              opacity: zoomingPortal.isDiving ? 0.95 : 1,
+              filter: zoomingPortal.isDiving ? 'blur(1.5px) brightness(1.2)' : 'none',
+              transition: 'all 1.1s cubic-bezier(0.65, 0, 0.15, 1)',
+            }}
+          >
+            <img
+              src={zoomingPortal.image}
+              alt={zoomingPortal.title}
+              className="w-full h-full object-cover"
+            />
+            {/* Cinematic Lens Flare & Dark Tunnel Vignette */}
+            <div className="absolute inset-0 bg-gradient-to-t from-[#020512] via-cyan-950/30 to-transparent" />
+            <div className="absolute inset-0 border-4 border-cyan-400/90 rounded-xl" />
+          </div>
+
+          {/* Expanding Center Cinema Aperture Ring Glow */}
+          <div
+            className="absolute rounded-full border border-cyan-300/80 pointer-events-none"
+            style={{
+              width: zoomingPortal.isDiving ? '160vmax' : '40px',
+              height: zoomingPortal.isDiving ? '160vmax' : '40px',
+              opacity: zoomingPortal.isDiving ? 0.6 : 0,
+              boxShadow: '0 0 120px rgba(56,189,248,0.95), inset 0 0 90px rgba(56,189,248,0.7)',
+              transition: 'all 1.1s cubic-bezier(0.65, 0, 0.15, 1)',
+            }}
+          />
+
+          {/* Heading overlay appearing during camera dive */}
+          <div
+            className="absolute z-20 font-mono text-sm tracking-[0.5em] uppercase text-cyan-300 font-bold"
+            style={{
+              opacity: zoomingPortal.isDiving ? 1 : 0,
+              transform: zoomingPortal.isDiving ? 'scale(1.1) translateY(-10px)' : 'scale(0.85) translateY(20px)',
+              transition: 'all 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.3s',
+            }}
+          >
+            ENTERING {zoomingPortal.title}...
           </div>
         </div>
       )}

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Cormorant_Garamond, Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
 import "lenis/dist/lenis.css";
+import SmoothScrollProvider from "@/components/SmoothScrollProvider";
 
 const cormorant = Cormorant_Garamond({
   variable: "--font-serif",
@@ -34,7 +35,9 @@ export default function RootLayout({
       className={`${cormorant.variable} ${plusJakarta.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col font-sans bg-[#050814] text-[#f1f5f9] selection:bg-cyan-500/30 selection:text-cyan-200">
-        {children}
+        <SmoothScrollProvider>
+          {children}
+        </SmoothScrollProvider>
       </body>
     </html>
   );

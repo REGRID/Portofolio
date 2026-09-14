@@ -120,6 +120,59 @@ body {
   transform: translate3d(0, 0, 0);
 }
 
+/* High-performance hardware accelerated canvas tile (Seamless Tapestry) */
+.cinema-card-tile {
+  contain: content;
+  border: none !important;
+}
+
+.cinema-card-tile .parallax-wrapper {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  will-change: transform;
+  transform-origin: center center;
+}
+
+/* Base Monochrome Image */
+.cinema-card-tile .monochrome-base {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: grayscale(100%) brightness(0.62) contrast(1.1);
+  backface-visibility: hidden;
+  pointer-events: none;
+  display: block;
+}
+
+/* Dynamic Color Overlay: Smoothly adjusted via opacity in RAF based on distance to screen center */
+.cinema-card-tile .color-overlay {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  opacity: 0;
+  will-change: opacity;
+}
+
+.cinema-card-tile .color-overlay .color-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: grayscale(0%) brightness(1.06) contrast(1.03);
+  backface-visibility: hidden;
+  pointer-events: none;
+  display: block;
+}
+
+/* Remove all text overlays, vignettes, and indicators completely for 100% clean visuals */
+.cinema-card-tile .card-text-overlay,
+.cinema-card-tile .card-vignette,
+.cinema-card-tile .center-action-indicator {
+  display: none !important;
+}
+
 /* Prevent competing CSS transitions from fighting GSAP's subpixel interpolation */
 .no-transition {
   transition: none !important;
@@ -130,6 +183,7 @@ body {
   0% {
     stroke-dashoffset: 59.7;
   }
+
   100% {
     stroke-dashoffset: 0;
   }
@@ -143,6 +197,7 @@ body {
   0% {
     transform: rotate(0deg);
   }
+
   100% {
     transform: rotate(360deg);
   }
@@ -153,9 +208,12 @@ body {
 }
 
 @keyframes ring-glow-pulse {
-  0%, 100% {
+
+  0%,
+  100% {
     filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.95)) drop-shadow(0 0 14px rgba(56, 189, 248, 0.8));
   }
+
   50% {
     filter: drop-shadow(0 0 10px rgba(255, 255, 255, 1)) drop-shadow(0 0 22px rgba(56, 189, 248, 1));
   }
@@ -177,31 +235,34 @@ body {
 
 .bento-card-transition {
   transition: min-height 0.45s cubic-bezier(0.16, 1, 0.3, 1),
-              height 0.45s cubic-bezier(0.16, 1, 0.3, 1),
-              border-color 0.35s cubic-bezier(0.16, 1, 0.3, 1),
-              background-color 0.35s cubic-bezier(0.16, 1, 0.3, 1),
-              box-shadow 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    height 0.45s cubic-bezier(0.16, 1, 0.3, 1),
+    border-color 0.35s cubic-bezier(0.16, 1, 0.3, 1),
+    background-color 0.35s cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 0.4s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .bento-artwork-slider {
   transition: max-height 0.48s cubic-bezier(0.16, 1, 0.3, 1),
-              opacity 0.4s cubic-bezier(0.16, 1, 0.3, 1),
-              transform 0.48s cubic-bezier(0.16, 1, 0.3, 1),
-              margin 0.45s cubic-bezier(0.16, 1, 0.3, 1);
+    opacity 0.4s cubic-bezier(0.16, 1, 0.3, 1),
+    transform 0.48s cubic-bezier(0.16, 1, 0.3, 1),
+    margin 0.45s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .bento-monogram-slider {
   transition: max-height 0.45s cubic-bezier(0.16, 1, 0.3, 1),
-              opacity 0.35s cubic-bezier(0.16, 1, 0.3, 1),
-              transform 0.45s cubic-bezier(0.16, 1, 0.3, 1),
-              margin 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    opacity 0.35s cubic-bezier(0.16, 1, 0.3, 1),
+    transform 0.45s cubic-bezier(0.16, 1, 0.3, 1),
+    margin 0.4s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 @keyframes bentoBottomBarGlow {
-  0%, 100% {
+
+  0%,
+  100% {
     box-shadow: 0 0 10px rgba(56, 189, 248, 0.85), 0 0 20px rgba(56, 189, 248, 0.45);
     opacity: 0.9;
   }
+
   50% {
     box-shadow: 0 0 16px rgba(56, 189, 248, 1), 0 0 30px rgba(56, 189, 248, 0.7);
     opacity: 1;
@@ -218,17 +279,21 @@ body {
 html,
 body,
 * {
-  -ms-overflow-style: none !important;  /* IE and Edge */
-  scrollbar-width: none !important;     /* Firefox */
+  -ms-overflow-style: none !important;
+  /* IE and Edge */
+  scrollbar-width: none !important;
+  /* Firefox */
 }
 
 ::-webkit-scrollbar,
 *::-webkit-scrollbar {
-  display: none !important;             /* Chrome, Safari, Edge (Chromium) */
+  display: none !important;
+  /* Chrome, Safari, Edge (Chromium) */
   width: 0 !important;
   height: 0 !important;
   background: transparent !important;
 }
+
 /* =========================================================================
    LENIS ULTRA-SMOOTH MODAL & POP-UP PRESENTATION
    ========================================================================= */
@@ -237,6 +302,7 @@ body,
     opacity: 0;
     backdrop-filter: blur(0px);
   }
+
   to {
     opacity: 1;
     backdrop-filter: blur(12px);
@@ -248,6 +314,7 @@ body,
     opacity: 0;
     transform: scale(0.96) translateY(14px);
   }
+
   to {
     opacity: 1;
     transform: scale(1) translateY(0);
@@ -265,4 +332,429 @@ body,
 .modal-inner-scroll {
   overscroll-behavior: contain !important;
   scroll-behavior: smooth !important;
+}
+
+/* =========================================================================
+   TRANSITIONS.DEV — UNIVERSAL MOTION TOKENS & SYSTEM
+   ========================================================================= */
+:root {
+  /* Durations */
+  --duration-stagger: 40ms;
+  --duration-micro: 80ms;
+  --duration-quick: 150ms;
+  --duration-fast: 250ms;
+  --duration-medium: 350ms;
+  --duration-slow: 400ms;
+  --duration-very-slow: 500ms;
+
+  /* Easings */
+  --ease-smooth-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in-out: ease-in-out;
+  --ease-out: ease-out;
+  --ease-linear: linear;
+  --ease-bounce: cubic-bezier(0.34, 1.36, 0.64, 1);
+  --ease-bounce-strong: cubic-bezier(0.34, 3.85, 0.64, 1);
+
+  /* Distances */
+  --distance-micro: 4px;
+  --distance-small: 6px;
+  --distance-base: 8px;
+  --distance-medium: 12px;
+  --distance-large: 30px;
+
+  /* Scales */
+  --scale-large: 0.96;
+  --scale-medium: 0.97;
+  --scale-small: 0.98;
+  --scale-tiny: 0.99;
+
+  /* Blur */
+  --blur-small: 2px;
+  --blur-medium: 3px;
+  --blur-large: 8px;
+
+  /* Modal open / close (06-modal.md) */
+  --modal-open-dur: 250ms;
+  --modal-close-dur: 150ms;
+  --modal-scale: 0.96;
+  --modal-scale-close: 0.96;
+  --modal-ease: cubic-bezier(0.22, 1, 0.36, 1);
+
+  /* Card hover tilt (19-card-tilt.md) */
+  --tilt-perspective: 1000px;
+  --tilt-return: 800ms;
+  --tilt-return-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --tilt-follow: 300ms;
+  --tilt-follow-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --tilt-glare-opacity: 0.38;
+  --tilt-glare-fade: 300ms;
+  --tilt-glare-ease: cubic-bezier(0.22, 1, 0.36, 1);
+
+  /* Shimmer text (15-shimmer-text.md) */
+  --shimmer-dur: 2400ms;
+  --shimmer-base: #93c5fd;
+  --shimmer-highlight: #ffffff;
+  --shimmer-band: 350%;
+  --shimmer-ease: linear;
+
+  /* Success check (10-success-check.md) */
+  --check-opacity-dur: 500ms;
+  --check-rotate-dur: 500ms;
+  --check-rotate-from: 70deg;
+  --check-bob-dur: 500ms;
+  --check-y-amount: 24px;
+  --check-blur-dur: 500ms;
+  --check-blur-from: 8px;
+  --check-path-dur: 500ms;
+  --check-path-delay: 80ms;
+  --check-ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --check-ease-opacity: cubic-bezier(0.22, 1, 0.36, 1);
+  --check-ease-rotate: cubic-bezier(0.22, 1, 0.36, 1);
+  --check-ease-bob: cubic-bezier(0.34, 1.35, 0.64, 1);
+  --check-ease-path: cubic-bezier(0.22, 1, 0.36, 1);
+
+  /* Toast open / close (22-toast.md) */
+  --toast-open: 350ms;
+  --toast-close: 250ms;
+  --toast-distance: 16px;
+  --toast-blur: 2px;
+  --toast-scale: 0.97;
+  --toast-ease: cubic-bezier(0.22, 1, 0.36, 1);
+
+  /* Learn more hover (24-learn-more-hover.md) */
+  --learn-shift: 3px;
+  --learn-spread: 9deg;
+  --learn-in: 300ms;
+  --learn-out: 300ms;
+  --learn-ease: cubic-bezier(0.22, 1, 0.36, 1);
+
+  /* Error state shake (12-error-state-shake.md) */
+  --shake-distance: 6px;
+  --shake-overshoot: 3px;
+  --shake-dur-a: 80ms;
+  --shake-dur-b: 60ms;
+  --shake-ease: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* ── 06. Modal Open / Close Transition (Asymmetric) ── */
+.t-modal-backdrop {
+  opacity: 0;
+  backdrop-filter: blur(0px);
+  transition: opacity var(--modal-close-dur) var(--modal-ease),
+    backdrop-filter var(--modal-close-dur) var(--modal-ease);
+  will-change: opacity, backdrop-filter;
+}
+
+.t-modal-backdrop.is-open {
+  opacity: 1;
+  backdrop-filter: blur(12px);
+  transition: opacity var(--modal-open-dur) var(--modal-ease),
+    backdrop-filter var(--modal-open-dur) var(--modal-ease);
+}
+
+.t-modal-backdrop.is-closing {
+  opacity: 0;
+  backdrop-filter: blur(0px);
+  transition: opacity var(--modal-close-dur) var(--modal-ease),
+    backdrop-filter var(--modal-close-dur) var(--modal-ease);
+}
+
+.t-modal {
+  transform-origin: center;
+  transform: scale(var(--modal-scale)) translateY(8px);
+  opacity: 0;
+  transition: transform var(--modal-close-dur) var(--modal-ease),
+    opacity var(--modal-close-dur) var(--modal-ease);
+  will-change: transform, opacity;
+}
+
+.t-modal.is-open {
+  transform: scale(1) translateY(0);
+  opacity: 1;
+  transition: transform var(--modal-open-dur) var(--modal-ease),
+    opacity var(--modal-open-dur) var(--modal-ease);
+}
+
+.t-modal.is-closing {
+  transform: scale(var(--modal-scale-close)) translateY(8px);
+  opacity: 0;
+  transition: transform var(--modal-close-dur) var(--modal-ease),
+    opacity var(--modal-close-dur) var(--modal-ease);
+}
+
+/* ── 19. Card Hover Tilt with Dynamic 3D Perspective & Glare ── */
+.t-tilt {
+  perspective: var(--tilt-perspective);
+  touch-action: pan-y;
+}
+
+.t-tilt-card {
+  position: relative;
+  border-radius: 1rem;
+  transform: perspective(var(--tilt-perspective)) rotateX(var(--tilt-rx, 0deg)) rotateY(var(--tilt-ry, 0deg));
+  transform-style: preserve-3d;
+  transition: transform var(--tilt-return) var(--tilt-return-ease),
+    box-shadow var(--tilt-return) var(--tilt-return-ease);
+  will-change: transform;
+}
+
+.t-tilt-card.is-tilting {
+  transition: transform var(--tilt-follow) var(--tilt-follow-ease),
+    box-shadow var(--tilt-follow) var(--tilt-follow-ease);
+}
+
+.t-tilt-glare {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: 0;
+  mix-blend-mode: screen;
+  background:
+    radial-gradient(circle 120px at var(--tilt-gx, 50%) var(--tilt-gy, 50%),
+      rgba(255, 255, 255, 0.45), rgba(56, 189, 248, 0.15) 45%, rgba(56, 189, 248, 0) 80%),
+    radial-gradient(circle 240px at var(--tilt-gx, 50%) var(--tilt-gy, 50%),
+      rgba(56, 189, 248, 0.18), rgba(16, 56, 117, 0.05) 55%, transparent 80%);
+  transition: opacity var(--tilt-glare-fade) var(--tilt-glare-ease);
+}
+
+.t-tilt.is-hover .t-tilt-glare {
+  opacity: var(--tilt-glare-opacity);
+}
+
+/* ── 15. Shimmer Text (Pure CSS Fluid Highlight Sweep) ── */
+.t-shimmer {
+  position: relative;
+  display: inline-block;
+  color: var(--shimmer-base);
+}
+
+.t-shimmer::before {
+  content: attr(data-text);
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: linear-gradient(90deg,
+      transparent 0%,
+      transparent 35%,
+      var(--shimmer-highlight) 50%,
+      transparent 65%,
+      transparent 100%);
+  background-size: var(--shimmer-band) 100%;
+  background-repeat: no-repeat;
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  animation: t-shimmer var(--shimmer-dur) var(--shimmer-ease) infinite;
+}
+
+@keyframes t-shimmer {
+  0% {
+    background-position: 100% 0;
+  }
+
+  100% {
+    background-position: 0% 0;
+  }
+}
+
+/* ── 10. Success Checkmark (Celebration Appear) ── */
+.t-success-check {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transform-origin: center;
+  opacity: 0;
+  will-change: transform, opacity, filter;
+}
+
+.t-success-check svg {
+  display: block;
+  overflow: visible;
+}
+
+.t-success-check svg path {
+  stroke-dasharray: 60;
+  stroke-dashoffset: 60;
+}
+
+.t-success-check[data-state="in"] {
+  animation:
+    t-check-fade var(--check-opacity-dur) var(--check-ease-opacity) forwards,
+    t-check-rotate var(--check-rotate-dur) var(--check-ease-rotate) forwards,
+    t-check-blur var(--check-blur-dur) var(--check-ease-out) forwards,
+    t-check-bob var(--check-bob-dur) var(--check-ease-bob) forwards;
+}
+
+.t-success-check[data-state="in"] svg path {
+  animation: t-check-path var(--check-path-dur) var(--check-ease-path) forwards;
+  animation-delay: var(--check-path-delay);
+}
+
+@keyframes t-check-fade {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes t-check-rotate {
+  from {
+    transform: rotate(calc(var(--check-rotate-from) * -1));
+  }
+
+  to {
+    transform: rotate(0deg);
+  }
+}
+
+@keyframes t-check-blur {
+  from {
+    filter: blur(var(--check-blur-from));
+  }
+
+  to {
+    filter: blur(0);
+  }
+}
+
+@keyframes t-check-bob {
+  0% {
+    translate: 0 var(--check-y-amount);
+  }
+
+  70% {
+    translate: 0 calc(var(--check-y-amount) * -0.15);
+  }
+
+  100% {
+    translate: 0 0;
+  }
+}
+
+@keyframes t-check-path {
+  from {
+    stroke-dashoffset: 60;
+  }
+
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+/* ── 22. Toast Open / Close ── */
+.t-toast {
+  opacity: 0;
+  transform: translateY(var(--toast-distance)) scale(var(--toast-scale));
+  filter: blur(var(--toast-blur));
+  will-change: transform, opacity, filter;
+  transition:
+    opacity var(--toast-close) var(--toast-ease),
+    transform var(--toast-close) var(--toast-ease),
+    filter var(--toast-close) var(--toast-ease);
+}
+
+.t-toast.is-open {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  filter: blur(0);
+  transition:
+    opacity var(--toast-open) var(--toast-ease),
+    transform var(--toast-open) var(--toast-ease),
+    filter var(--toast-open) var(--toast-ease);
+}
+
+/* ── 24. Learn More Chevron Glide & Spread ── */
+.t-learn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.t-learn-chevron {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transform: translateX(0);
+  transition: transform var(--learn-out) var(--learn-ease);
+}
+
+.t-learn-arm {
+  transform-box: view-box;
+  transform-origin: 10px 8px;
+  vector-effect: non-scaling-stroke;
+  transition: transform var(--learn-out) var(--learn-ease);
+}
+
+.t-learn:hover .t-learn-chevron {
+  transform: translateX(var(--learn-shift));
+  transition-duration: var(--learn-in);
+}
+
+.t-learn:hover .t-learn-arm {
+  transition-duration: var(--learn-in);
+}
+
+.t-learn:hover .t-learn-arm-top {
+  transform: rotate(var(--learn-spread));
+}
+
+.t-learn:hover .t-learn-arm-bot {
+  transform: rotate(calc(var(--learn-spread) * -1));
+}
+
+/* ── 12. Error State Shake ── */
+@keyframes t-input-shake {
+  0% {
+    transform: translateX(0);
+  }
+
+  20% {
+    transform: translateX(calc(var(--shake-distance) * -1));
+  }
+
+  40% {
+    transform: translateX(var(--shake-distance));
+  }
+
+  60% {
+    transform: translateX(calc(var(--shake-overshoot) * -1));
+  }
+
+  80% {
+    transform: translateX(var(--shake-overshoot));
+  }
+
+  100% {
+    transform: translateX(0);
+  }
+}
+
+.is-shaking {
+  animation: t-input-shake 0.38s var(--shake-ease);
+}
+
+/* Accessible Reduced-Motion Guard */
+@media (prefers-reduced-motion: reduce) {
+
+  .t-modal,
+  .t-modal-backdrop,
+  .t-tilt-card,
+  .t-tilt-glare,
+  .t-toast,
+  .t-learn-chevron,
+  .t-learn-arm,
+  .is-shaking {
+    transition: none !important;
+    animation: none !important;
+    transform: none !important;
+  }
+
+  .t-shimmer::before {
+    animation: none !important;
+  }
 }
