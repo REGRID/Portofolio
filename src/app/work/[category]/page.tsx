@@ -316,6 +316,13 @@ export default function CategoryShowcasePage({
         velocityRef.current.vy *= 0.93;
       }
 
+      if (!isDraggingRef.current && viewMode === 'slider') {
+        targetPanRef.current.y *= 0.92;
+        if (Math.abs(targetPanRef.current.y) < 0.05) {
+          targetPanRef.current.y = 0;
+        }
+      }
+
       currentPanRef.current.x +=
         (targetPanRef.current.x - currentPanRef.current.x) * chaseEase;
       currentPanRef.current.y +=
@@ -386,12 +393,14 @@ export default function CategoryShowcasePage({
             const cardCenterY = isSlider ? scY : screenY + tile.height / 2;
 
             const normX = (cardCenterX - scX) / scX;
-            const normY = (cardCenterY - scY) / scY;
-            const distSq = normX * normX + normY * normY;
+            // In slider mode: vertical drag displacement directly powers optical parallax depth
+            const normY = isSlider
+              ? -(currentPanRef.current.y / 120)
+              : (cardCenterY - scY) / scY;
 
             // Optical parallax displacement + dynamic velocity momentum
-            const px = -normX * 24 + lagX;
-            const py = -normY * 28 + lagY;
+            const px = Math.max(-44, Math.min(44, -normX * 24 + lagX));
+            const py = Math.max(-48, Math.min(48, -normY * 28 + lagY));
 
             tile.wrapperEl.style.transform = `scale(1.22) translate3d(${px.toFixed(1)}px, ${py.toFixed(1)}px, 0)`;
 
@@ -993,6 +1002,11 @@ export default function CategoryShowcasePage({
         targetPanRef.current.y += stepDy * velocityGain;
       } else if (viewMode === 'slider') {
         sliderHasScrolledRef.current = true;
+        // In slider: vertical drag directly drives 2.5D optical parallax with elastic headroom
+        targetPanRef.current.y = Math.max(
+          -120,
+          Math.min(120, targetPanRef.current.y + stepDy * velocityGain * 0.8)
+        );
       }
     };
 
@@ -1018,6 +1032,9 @@ export default function CategoryShowcasePage({
       targetPanRef.current.x = snap.x;
       if (viewMode === 'grid') {
         targetPanRef.current.y = snap.y;
+      } else if (viewMode === 'slider') {
+        // Smooth elastic return to horizontal level
+        targetPanRef.current.y = 0;
       }
     };
 
@@ -1031,6 +1048,11 @@ export default function CategoryShowcasePage({
         sliderHasScrolledRef.current = true;
         const delta = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
         targetPanRef.current.x -= delta * 1.5;
+        // In slider: subtle vertical wheel response drives subtle lens tilt
+        targetPanRef.current.y = Math.max(
+          -80,
+          Math.min(80, targetPanRef.current.y - e.deltaY * 0.35)
+        );
       } else {
         targetPanRef.current.x -= e.deltaX * 1.3;
         targetPanRef.current.y -= e.deltaY * 1.3;
