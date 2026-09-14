@@ -559,14 +559,6 @@ export default function CategoryShowcasePage({
         if (overlay) {
           overlay.style.opacity = m.deltaCol === 0 ? '1' : '0';
         }
-        const wrapper = m.cardEl.querySelector<HTMLElement>('.parallax-wrapper');
-        if (wrapper) {
-          const sliderNormX = (scX + m.deltaCol * SLIDER_STRIDE - scX) / scX;
-          const sliderPx = -sliderNormX * 24;
-          gsap.set(wrapper, {
-            transform: `scale(1.22) translate3d(${sliderPx.toFixed(1)}px, 0, 0)`,
-          });
-        }
       });
 
       // Animate seamlessly from slider configuration into rest grid layout (Zoom Out)
@@ -634,20 +626,6 @@ export default function CategoryShowcasePage({
           },
           0
         );
-        const wrapper = m.cardEl.querySelector<HTMLElement>('.parallax-wrapper');
-        if (wrapper) {
-          const gridNormX = (scX + m.deltaCol * STEP_X - scX) / scX;
-          const gridPx = -gridNormX * 24;
-          tl.to(
-            wrapper,
-            {
-              transform: `scale(1.22) translate3d(${gridPx.toFixed(1)}px, 0, 0)`,
-              duration: 0.8,
-              ease: 'power3.inOut',
-            },
-            0
-          );
-        }
       });
     } else if (viewMode === 'slider') {
       sliderHasScrolledRef.current = false;
@@ -870,21 +848,6 @@ export default function CategoryShowcasePage({
           0
         );
 
-        // Transition parallax wrapper to horizontal-only slider parallax
-        const normX = (targetCenterX - scX) / scX;
-        const targetPx = -normX * 24;
-        const wrapper = m.cardEl.querySelector<HTMLElement>('.parallax-wrapper');
-        if (wrapper) {
-          tl.to(
-            wrapper,
-            {
-              transform: `scale(1.22) translate3d(${targetPx.toFixed(1)}px, 0, 0)`,
-              duration: 0.8,
-              ease: 'power3.inOut',
-            },
-            0
-          );
-        }
 
         // Keep focal photo fully colored, neighbor cards soft
         const overlay = m.cardEl.querySelector<HTMLElement>('.color-overlay');
