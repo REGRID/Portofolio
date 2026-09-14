@@ -546,6 +546,8 @@ export default function CategoryShowcasePage({
     isTransitioningRef.current = true;
     sliderHasScrolledRef.current = false;
 
+    const disperseDistance = typeof window !== 'undefined' ? window.innerHeight + 250 : 800;
+
     if (viewMode === 'grid' && newMode === 'slider') {
       // --- MODE 1: GRID -> SLIDER ---
       const curWx = wrapRange(currentPanRef.current.x, BLOCK_WIDTH);
@@ -553,24 +555,23 @@ export default function CategoryShowcasePage({
 
       // Find the card in Row 1 closest to viewport center (scX, scY)
       let minRow1Dist = 999999;
-      let focalCardCol = 0;
+      let focalTile = cachedTilesRef.current[0];
 
       cachedTilesRef.current.forEach((tile) => {
-        if (tile.row === 1 && tile.bx === 0) {
+        if (tile.row === 1) {
           const screenX = tile.localX + curWx;
           const cardCenterX = screenX + tile.width / 2;
           const dist = Math.abs(cardCenterX - scX);
           if (dist < minRow1Dist) {
             minRow1Dist = dist;
-            focalCardCol = tile.col;
+            focalTile = tile;
           }
         }
       });
 
-      // Target slider pan such that card focalCardCol is centered at scX
-      const rawTargetSliderPanX = scX - SLIDER_CARD_WIDTH / 2 - focalCardCol * SLIDER_STRIDE;
-      const targetSliderPanX = wrapRange(rawTargetSliderPanX, sliderBlockWidth);
-      const targetCanvasY = scY - (STEP_Y + STEP_Y / 2); // 712.5px centers Row 1 vertically
+      // Target slider pan such that focalTile is centered at scX
+      const targetSliderPanX = scX - (focalTile.localX + focalTile.strideShift + SLIDER_CARD_WIDTH / 2);
+      const targetCanvasY = scY - 712.5;
 
       const topRowCards: HTMLElement[] = [];
       const bottomRowCards: HTMLElement[] = [];
@@ -591,7 +592,7 @@ export default function CategoryShowcasePage({
             cardEl: tile.cardEl,
             colorOverlayEl: tile.colorOverlayEl,
             strideShift: tile.strideShift,
-            isFocal: tile.col === focalCardCol && tile.bx === 0,
+            isFocal: tile === focalTile,
           });
         }
       });
@@ -611,38 +612,38 @@ export default function CategoryShowcasePage({
         },
       });
 
-      // Disperse top row upwards with ease-in-out
+      // 1. Top row immediately separates UPWARDS with ease-in-out
       tl.to(
         topRowCards,
         {
-          y: -350,
+          y: -disperseDistance,
           opacity: 0,
-          duration: 0.8,
-          ease: 'power3.inOut',
+          duration: 0.75,
+          ease: 'power2.inOut',
         },
         0
       );
 
-      // Disperse bottom row downwards with ease-in-out
+      // 2. Bottom row immediately separates DOWNWARDS with ease-in-out
       tl.to(
         bottomRowCards,
         {
-          y: 350,
+          y: disperseDistance,
           opacity: 0,
-          duration: 0.8,
-          ease: 'power3.inOut',
+          duration: 0.75,
+          ease: 'power2.inOut',
         },
         0
       );
 
-      // Animate canvas position smoothly to slider center
+      // 3. Animate canvas position smoothly to slider center
       tl.to(
         canvasAnim,
         {
           x: targetSliderPanX,
           y: targetCanvasY,
-          duration: 0.8,
-          ease: 'power3.inOut',
+          duration: 0.75,
+          ease: 'power2.inOut',
           onUpdate: () => {
             if (canvasRef.current) {
               canvasRef.current.style.transform = `translate3d(${canvasAnim.x.toFixed(3)}px, ${canvasAnim.y.toFixed(3)}px, 0)`;
@@ -652,9 +653,9 @@ export default function CategoryShowcasePage({
         0
       );
 
-      // Animate middle row cards: zoom in to slider dimensions & expand stride seamlessly
-      const targetScaleX = SLIDER_CARD_WIDTH / TILE_WIDTH; // 1.3043478
-      const targetScaleY = SLIDER_CARD_HEIGHT / TILE_HEIGHT; // 1.3052632
+      // 4. Animate middle row cards: zoom in to slider dimensions & expand stride
+      const targetScaleX = SLIDER_CARD_WIDTH / TILE_WIDTH;
+      const targetScaleY = SLIDER_CARD_HEIGHT / TILE_HEIGHT;
 
       middleRowCards.forEach((m) => {
         tl.to(
@@ -664,8 +665,8 @@ export default function CategoryShowcasePage({
             scaleX: targetScaleX,
             scaleY: targetScaleY,
             transformOrigin: 'center center',
-            duration: 0.8,
-            ease: 'power3.inOut',
+            duration: 0.75,
+            ease: 'power2.inOut',
           },
           0
         );
@@ -674,8 +675,8 @@ export default function CategoryShowcasePage({
           m.colorOverlayEl,
           {
             opacity: m.isFocal ? 1 : 0,
-            duration: 0.8,
-            ease: 'power3.inOut',
+            duration: 0.75,
+            ease: 'power2.inOut',
           },
           0
         );
@@ -687,25 +688,23 @@ export default function CategoryShowcasePage({
 
       // Find the card in Row 1 currently closest to scX
       let minSliderDist = 999999;
-      let centerCol = 0;
+      let focalTile = cachedTilesRef.current[0];
 
       cachedTilesRef.current.forEach((tile) => {
-        if (tile.row === 1 && tile.bx === 0) {
+        if (tile.row === 1) {
           const screenX = tile.localX + tile.strideShift + curSliderPanX;
           const cardCenterX = screenX + SLIDER_CARD_WIDTH / 2;
           const dist = Math.abs(cardCenterX - scX);
           if (dist < minSliderDist) {
             minSliderDist = dist;
-            centerCol = tile.col;
+            focalTile = tile;
           }
         }
       });
 
-      // Target grid pan such that Row 1 card centerCol is centered at (scX, scY)
-      const rawTargetGridX = scX - TILE_WIDTH / 2 - centerCol * STEP_X;
-      const targetGridX = wrapRange(rawTargetGridX, BLOCK_WIDTH);
-      const rawTargetGridY = scY - TILE_HEIGHT / 2 - 1 * STEP_Y;
-      const targetGridY = wrapRange(rawTargetGridY, BLOCK_HEIGHT);
+      // Target grid pan such that focalTile is centered at (scX, scY)
+      const targetGridX = scX - focalTile.localX - TILE_WIDTH / 2;
+      const targetGridY = scY - focalTile.localY - TILE_HEIGHT / 2;
 
       const topRowCards: HTMLElement[] = [];
       const bottomRowCards: HTMLElement[] = [];
@@ -724,14 +723,18 @@ export default function CategoryShowcasePage({
           middleRowCards.push({
             cardEl: tile.cardEl,
             colorOverlayEl: tile.colorOverlayEl,
-            isCenter: tile.col === centerCol && tile.bx === 0,
+            isCenter: tile === focalTile,
           });
         }
       });
 
+      // Ensure top & bottom rows start from separated positions
+      gsap.set(topRowCards, { y: -disperseDistance, opacity: 0, pointerEvents: 'auto' });
+      gsap.set(bottomRowCards, { y: disperseDistance, opacity: 0, pointerEvents: 'auto' });
+
       const canvasAnim = {
         x: curSliderPanX,
-        y: scY - (STEP_Y + STEP_Y / 2),
+        y: scY - 712.5,
       };
 
       const tl = gsap.timeline({
@@ -740,6 +743,8 @@ export default function CategoryShowcasePage({
           targetPanRef.current = { x: targetGridX, y: targetGridY };
           viewModeRef.current = 'grid';
           setViewMode('grid');
+          topRowCards.forEach((c) => gsap.set(c, { clearProps: 'transform,opacity,pointerEvents' }));
+          bottomRowCards.forEach((c) => gsap.set(c, { clearProps: 'transform,opacity,pointerEvents' }));
           middleRowCards.forEach((m) => {
             gsap.set(m.cardEl, { clearProps: 'transform,zIndex' });
           });
@@ -747,38 +752,38 @@ export default function CategoryShowcasePage({
         },
       });
 
-      // Return top row to grid
+      // 1. Return top row to grid with ease-in-out
       tl.to(
         topRowCards,
         {
           y: 0,
           opacity: 1,
-          duration: 0.8,
-          ease: 'power3.inOut',
+          duration: 0.75,
+          ease: 'power2.inOut',
         },
         0
       );
 
-      // Return bottom row to grid
+      // 2. Return bottom row to grid with ease-in-out
       tl.to(
         bottomRowCards,
         {
           y: 0,
           opacity: 1,
-          duration: 0.8,
-          ease: 'power3.inOut',
+          duration: 0.75,
+          ease: 'power2.inOut',
         },
         0
       );
 
-      // Animate canvas position smoothly from slider pan to grid pan
+      // 3. Animate canvas position smoothly from slider pan to grid pan
       tl.to(
         canvasAnim,
         {
           x: targetGridX,
           y: targetGridY,
-          duration: 0.8,
-          ease: 'power3.inOut',
+          duration: 0.75,
+          ease: 'power2.inOut',
           onUpdate: () => {
             if (canvasRef.current) {
               canvasRef.current.style.transform = `translate3d(${canvasAnim.x.toFixed(3)}px, ${canvasAnim.y.toFixed(3)}px, 0)`;
@@ -788,7 +793,7 @@ export default function CategoryShowcasePage({
         0
       );
 
-      // Zoom out middle row cards back to grid dimensions & 345 stride
+      // 4. Zoom out middle row cards back to grid dimensions & 345 stride
       middleRowCards.forEach((m) => {
         tl.to(
           m.cardEl,
@@ -796,8 +801,8 @@ export default function CategoryShowcasePage({
             x: 0,
             scaleX: 1,
             scaleY: 1,
-            duration: 0.8,
-            ease: 'power3.inOut',
+            duration: 0.75,
+            ease: 'power2.inOut',
           },
           0
         );
@@ -806,8 +811,8 @@ export default function CategoryShowcasePage({
           m.colorOverlayEl,
           {
             opacity: m.isCenter ? 1 : 0,
-            duration: 0.8,
-            ease: 'power3.inOut',
+            duration: 0.75,
+            ease: 'power2.inOut',
           },
           0
         );
