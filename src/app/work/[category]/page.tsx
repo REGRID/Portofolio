@@ -247,18 +247,130 @@ export default function CategoryShowcasePage({
     return () => clearTimeout(timer);
   }, [refreshCachedTiles]);
 
-  // Ensure the center of the screen ALWAYS contains a card (on load & on window resize)
+  // Save current view mode and coordinates so refreshing keeps user at the exact same location
+  const saveStateToStorage = useCallback(
+    (mode: 'grid' | 'slider' | 'list', panX: number, panY: number) => {
+      if (typeof window === 'undefined') return;
+      try {
+        const scX = window.innerWidth / 2;
+        const scY = window.innerHeight / 2;
+        let focalIdx = 0;
+
+        if (mode === 'slider') {
+          const wx = wrapRange(panX, sliderBlockWidth);
+          const col = Math.round((scX - wx - SLIDER_CARD_WIDTH / 2) / SLIDER_STRIDE);
+          focalIdx =
+            ((col % displayProjects.length) + displayProjects.length) %
+            displayProjects.length;
+        } else if (mode === 'grid') {
+          const wx = wrapRange(panX, BLOCK_WIDTH);
+          const wy = wrapRange(panY, BLOCK_HEIGHT);
+          const col = Math.round((scX - wx - TILE_WIDTH / 2) / STEP_X);
+          const row = Math.round((scY - wy - TILE_HEIGHT / 2) / STEP_Y);
+          const normCol = ((col % GRID_COLS) + GRID_COLS) % GRID_COLS;
+          const normRow = ((row % GRID_ROWS) + GRID_ROWS) % GRID_ROWS;
+          focalIdx = (normCol + normRow * 6) % displayProjects.length;
+        }
+
+        const stateObj = {
+          viewMode: mode,
+          panX,
+          panY,
+          focalIdx,
+          timestamp: Date.now(),
+        };
+        sessionStorage.setItem(
+          `portfolio_state_${categoryKey}`,
+          JSON.stringify(stateObj)
+        );
+        localStorage.setItem(
+          `portfolio_state_${categoryKey}`,
+          JSON.stringify(stateObj)
+        );
+
+        // Sync query parameter without full page reload
+        const url = new URL(window.location.href);
+        if (url.searchParams.get('view') !== mode) {
+          url.searchParams.set('view', mode);
+          window.history.replaceState(null, '', url.toString());
+        }
+      } catch {}
+    },
+    [categoryKey, sliderBlockWidth, displayProjects.length]
+  );
+
+  // Ensure the center of the screen ALWAYS contains a card (on load & on window resize, with refresh persistence)
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const scX = window.innerWidth / 2;
     const scY = window.innerHeight / 2;
 
-    // Center focal hero card (col 2, row 1) right in the middle of the viewport
-    const initX = scX - TILE_WIDTH / 2 - 2 * STEP_X;
-    const initY = scY - TILE_HEIGHT / 2 - 1 * STEP_Y;
+    let restored = false;
+    try {
+      const urlParams = new URLSearchParams(window.location.search);
+      const urlView = urlParams.get('view') as
+        | 'grid'
+        | 'slider'
+        | 'list'
+        | null;
 
-    targetPanRef.current = { x: initX, y: initY };
-    currentPanRef.current = { x: initX, y: initY };
+      const savedStr =
+        sessionStorage.getItem(`portfolio_state_${categoryKey}`) ||
+        localStorage.getItem(`portfolio_state_${categoryKey}`);
+
+      let targetMode: 'grid' | 'slider' | 'list' = 'grid';
+      let savedPanX: number | null = null;
+      let savedPanY: number | null = null;
+      let savedFocalIdx: number | null = null;
+
+      if (savedStr) {
+        const saved = JSON.parse(savedStr);
+        if (saved.viewMode) targetMode = saved.viewMode;
+        if (typeof saved.panX === 'number') savedPanX = saved.panX;
+        if (typeof saved.panY === 'number') savedPanY = saved.panY;
+        if (typeof saved.focalIdx === 'number') savedFocalIdx = saved.focalIdx;
+      }
+
+      if (
+        urlView &&
+        (urlView === 'grid' || urlView === 'slider' || urlView === 'list')
+      ) {
+        targetMode = urlView;
+      }
+
+      if (targetMode !== viewModeRef.current) {
+        setViewMode(targetMode);
+        viewModeRef.current = targetMode;
+      }
+
+      if (targetMode === 'slider') {
+        const focalIdx = typeof savedFocalIdx === 'number' ? savedFocalIdx : 0;
+        const rawTargetX =
+          scX - SLIDER_CARD_WIDTH / 2 - focalIdx * SLIDER_STRIDE;
+        const targetX = wrapRange(rawTargetX, sliderBlockWidth);
+        targetPanRef.current = { x: targetX, y: 0 };
+        currentPanRef.current = { x: targetX, y: 0 };
+        restored = true;
+      } else if (
+        targetMode === 'grid' &&
+        typeof savedPanX === 'number' &&
+        typeof savedPanY === 'number'
+      ) {
+        const snap = getSnapCoordinates(savedPanX, savedPanY, 'grid');
+        targetPanRef.current = snap;
+        currentPanRef.current = snap;
+        restored = true;
+      }
+    } catch {}
+
+    if (!restored) {
+      // Default: Center focal hero card (col 2, row 1) right in the middle of the viewport
+      const initX = scX - TILE_WIDTH / 2 - 2 * STEP_X;
+      const initY = scY - TILE_HEIGHT / 2 - 1 * STEP_Y;
+
+      targetPanRef.current = { x: initX, y: initY };
+      currentPanRef.current = { x: initX, y: initY };
+    }
 
     const handleResize = () => {
       const snap = getSnapCoordinates(
@@ -267,11 +379,12 @@ export default function CategoryShowcasePage({
         viewModeRef.current
       );
       targetPanRef.current = snap;
+      saveStateToStorage(viewModeRef.current, snap.x, snap.y);
     };
 
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
-  }, []);
+  }, [categoryKey, sliderBlockWidth, saveStateToStorage]);
 
   // High-performance 60-120 FPS hardware-accelerated RAF Lerp loop
   useEffect(() => {
@@ -573,6 +686,7 @@ export default function CategoryShowcasePage({
             tile.wrapperEl.style.transform = 'scale(1.22)';
           });
           isTransitioningRef.current = false;
+          saveStateToStorage('grid', currentPanRef.current.x, currentPanRef.current.y);
         },
       });
 
@@ -790,6 +904,7 @@ export default function CategoryShowcasePage({
 
           setViewMode('slider');
           isTransitioningRef.current = false;
+          saveStateToStorage('slider', targetSliderPanX, 0);
         },
       });
 
@@ -893,8 +1008,9 @@ export default function CategoryShowcasePage({
 
       transitionDirectionRef.current = 'slider-to-grid';
       setViewMode('grid');
+      saveStateToStorage('grid', gridSnapX, gridSnapY);
     }
-  }, [viewMode, displayProjects, sliderBlockWidth]);
+  }, [viewMode, displayProjects, sliderBlockWidth, saveStateToStorage]);
 
   // Native Hardware-Accelerated Free Drag & Wheel Engine (Bypasses React SyntheticEvents)
   useEffect(() => {
@@ -1025,6 +1141,7 @@ export default function CategoryShowcasePage({
       if (viewMode === 'grid') {
         targetPanRef.current.y = snap.y;
       }
+      saveStateToStorage(viewMode, snap.x, viewMode === 'grid' ? snap.y : 0);
     };
 
     const onPointerLeave = () => {};
@@ -1054,6 +1171,7 @@ export default function CategoryShowcasePage({
         if (viewMode === 'grid') {
           targetPanRef.current.y = snap.y;
         }
+        saveStateToStorage(viewMode, snap.x, viewMode === 'grid' ? snap.y : 0);
       }, 150);
     };
 
@@ -1071,7 +1189,7 @@ export default function CategoryShowcasePage({
       container.removeEventListener('wheel', onWheel);
       if (wheelSnapTimeoutRef.current) clearTimeout(wheelSnapTimeoutRef.current);
     };
-  }, [viewMode]);
+  }, [viewMode, saveStateToStorage]);
 
   // Handle Project Click:
   // - If clicked card is outside the center: smoothly pan/center to that card
@@ -1113,6 +1231,7 @@ export default function CategoryShowcasePage({
         if (viewMode === 'grid') {
           targetPanRef.current.y = snap.y;
         }
+        saveStateToStorage(viewMode, snap.x, viewMode === 'grid' ? snap.y : 0);
       }
     }
   };
