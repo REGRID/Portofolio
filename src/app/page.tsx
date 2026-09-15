@@ -564,6 +564,54 @@ export default function PortfolioPage() {
     }
   }, [activePageIndex, handlePageClick]);
 
+  // Activate Section 02 Work & smooth zoom-out landing animation when returning from /work/[category]
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const checkTargetSection = () => {
+      const hash = window.location.hash;
+      const urlParams = new URLSearchParams(window.location.search);
+      const section = urlParams.get('section');
+
+      if (hash === '#portfolio' || section === 'work') {
+        activePageIndexRef.current = 1;
+        setActivePageIndex(1);
+        const aboutEl = document.getElementById('about');
+        const portfolioEl = document.getElementById('portfolio');
+
+        if (aboutEl) {
+          gsap.set(aboutEl, { visibility: 'hidden', opacity: 0, pointerEvents: 'none' });
+        }
+        if (portfolioEl) {
+          gsap.set(portfolioEl, {
+            visibility: 'visible',
+            opacity: 1,
+            y: 0,
+            pointerEvents: 'auto',
+          });
+
+          // Cinematic zoom-out landing for the 4 Bento cards (camera pulls back into position)
+          gsap.fromTo(
+            '.bento-anim-card',
+            { scale: 1.18, opacity: 0, filter: 'blur(6px)' },
+            {
+              scale: 1,
+              opacity: 1,
+              filter: 'blur(0px)',
+              duration: 0.85,
+              stagger: 0.05,
+              ease: 'power2.out',
+              clearProps: 'filter',
+            }
+          );
+        }
+      }
+    };
+
+    checkTargetSection();
+    window.addEventListener('hashchange', checkTargetSection);
+    return () => window.removeEventListener('hashchange', checkTargetSection);
+  }, []);
+
   return (
     <div className="relative w-full h-screen overflow-hidden simon-sparks-bg text-[#f1f5f9] font-sans selection:bg-cyan-500/30 selection:text-cyan-200">
       {/* Background Subtle Radial Lighting Overlay (Clean Studio Canvas) */}

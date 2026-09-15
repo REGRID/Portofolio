@@ -19,6 +19,17 @@ export default function SmoothScrollProvider({
   const lenisRef = useRef<Lenis | null>(null);
 
   useEffect(() => {
+    // If on /work/ full-screen canvas page, bypass Lenis so native canvas physics have full control
+    if (pathname.startsWith('/work/')) {
+      if (lenisRef.current) {
+        lenisRef.current.destroy();
+        lenisRef.current = null;
+      }
+      // Ensure GSAP lag smoothing is healthy and never skips frames during load
+      gsap.ticker.lagSmoothing(500, 33);
+      return;
+    }
+
     // Inisialisasi Lenis dengan kurva easing exponential sesuai panduan remyshoots
     const lenis = new Lenis({
       duration: 1.2,
@@ -39,23 +50,13 @@ export default function SmoothScrollProvider({
     };
 
     gsap.ticker.add(updateTicker);
-    gsap.ticker.lagSmoothing(0);
+    gsap.ticker.lagSmoothing(500, 33);
 
     return () => {
       gsap.ticker.remove(updateTicker);
       lenis.destroy();
       lenisRef.current = null;
     };
-  }, []);
-
-  // Pause Lenis on full-screen infinite canvas page (/work/[category])
-  useEffect(() => {
-    if (!lenisRef.current) return;
-    if (pathname.startsWith('/work/')) {
-      lenisRef.current.stop();
-    } else {
-      lenisRef.current.start();
-    }
   }, [pathname]);
 
   return <>{children}</>;
