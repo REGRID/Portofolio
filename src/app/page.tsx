@@ -368,7 +368,7 @@ export default function PortfolioPage() {
               clearProps: 'transform,opacity',
             });
           }
-          if (targetIndex === 1) gsap.set('.bento-anim-card', { opacity: 1, y: 0 });
+          if (targetIndex === 1) gsap.set('.bento-anim-card', { opacity: 1, y: 0, clearProps: 'transform' });
           setTimeout(() => {
             isTransitioningRef.current = false;
           }, 190); // 190ms debounce buffer to absorb trackpad inertia
@@ -568,6 +568,11 @@ export default function PortfolioPage() {
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const checkTargetSection = () => {
+      // Force reset any lingering scroll offset to guarantee viewport-fixed element alignment
+      window.scrollTo(0, 0);
+      if (document.documentElement) document.documentElement.scrollTop = 0;
+      if (document.body) document.body.scrollTop = 0;
+
       const hash = window.location.hash;
       const urlParams = new URLSearchParams(window.location.search);
       const section = urlParams.get('section');
@@ -600,7 +605,7 @@ export default function PortfolioPage() {
               duration: 0.85,
               stagger: 0.05,
               ease: 'power2.out',
-              clearProps: 'filter',
+              clearProps: 'filter,transform',
             }
           );
         }
@@ -691,118 +696,118 @@ export default function PortfolioPage() {
         </nav>
       </header>
 
-      {/* MAIN VIEWPORT CONTAINER */}
-      <main ref={mainRef} className="relative w-full h-full overflow-hidden select-none">
-        
-        {/* Persistent Right Coordinate & Slide Indicator Widget (Fixed Auxiliary Line pointing to 4 Circles) */}
-        <div className="fixed right-6 sm:right-12 lg:right-20 top-1/2 -translate-y-1/2 hidden md:flex items-start gap-7 sm:gap-9 select-none z-40">
-          {/* Hairline guide with sliding arrow pointer that points right directly into the active circle center */}
-          <div className="relative flex flex-col justify-between h-[168px] w-28 text-[11px] font-sans tracking-widest text-slate-400 pointer-events-none select-none">
-            {/* Dynamic arrow and label tracker */}
-            <div
-              className="absolute left-0 w-full flex items-center justify-between transition-all duration-500 ease-out"
-              style={{
-                top: `${activePageIndex * 48 + 14}px`,
-                transform: 'translateY(-50%)',
-              }}
-            >
-              <span className="text-[11px] tracking-[0.2em] font-sans font-bold text-white uppercase drop-shadow-[0_0_8px_rgba(255,255,255,0.4)]">
-                {guidelinePages[activePageIndex].title}
-              </span>
-              <div className="flex-1 mx-2.5 h-[1px] bg-gradient-to-r from-transparent via-cyan-500/40 to-cyan-400/80" />
-              <span className="text-[12px] text-cyan-400 font-bold drop-shadow-[0_0_6px_rgba(56,189,248,0.9)]">
-                ▸
-              </span>
-            </div>
-          </div>
-
-          {/* The 4 Simon Sparks Minimalist Synchronized Circles (Stacked with Connecting Hairline) */}
-          <div className="relative flex flex-col items-center gap-5">
-            {/* Subtle connecting vertical guide hairline behind circles */}
-            <div className="absolute top-3.5 bottom-3.5 w-[1px] bg-cyan-900/40 -z-10 pointer-events-none" />
-
-            {guidelinePages.map((page, idx) => {
-              const isActive = activePageIndex === idx;
-              return (
-                <button
-                  key={page.id}
-                  onClick={() => handlePageClick(idx)}
-                  className="relative group cursor-pointer focus:outline-none focus-visible:ring-1 focus-visible:ring-cyan-400 rounded-full"
-                  aria-label={`Go to ${page.title} (Page ${page.label})`}
-                >
-                  <svg className="w-7 h-7 overflow-visible">
-                    {/* Outer Thin Static Ring Frame */}
-                    <circle
-                      cx="14"
-                      cy="14"
-                      r="9.5"
-                      fill="none"
-                      stroke={isActive ? "rgba(56, 189, 248, 0.45)" : "#0f2f55"}
-                      strokeWidth="1.2"
-                      className="transition-colors duration-300"
-                    />
-
-                    {/* Small Inactive Orbiting Dot / Anchor */}
-                    {!isActive && (
-                      <circle
-                        cx="14"
-                        cy="14"
-                        r="2.2"
-                        fill="#1a4674"
-                        className="group-hover:fill-cyan-400 transition-colors"
-                      />
-                    )}
-
-                    {/* Active State: Centered Bright White Solid Dot + Rotating Progress Stroke */}
-                    {isActive && (
-                      <>
-                        {/* Static Centered Solid Light Dot */}
-                        <circle
-                          cx="14"
-                          cy="14"
-                          r="2.4"
-                          fill="#ffffff"
-                          className="drop-shadow-[0_0_6px_rgba(255,255,255,1)]"
-                        />
-
-                        {/* Subtle Background Track */}
-                        <circle
-                          cx="14"
-                          cy="14"
-                          r="9.5"
-                          fill="none"
-                          stroke="rgba(255, 255, 255, 0.15)"
-                          strokeWidth="1.2"
-                        />
-
-                        {/* Animated Progress Stroke (Fills smoothly from 0% to 100% clockwise over 1 minute) */}
-                        <circle
-                          key={`fill-${activePageIndex}`}
-                          cx="14"
-                          cy="14"
-                          r="9.5"
-                          fill="none"
-                          stroke="#ffffff"
-                          strokeWidth="2.2"
-                          strokeLinecap="round"
-                          strokeDasharray="59.7"
-                          strokeDashoffset="59.7"
-                          onAnimationEnd={() => {
-                            if (activePageIndex === 0) {
-                              handlePageClick(1);
-                            }
-                          }}
-                          className="animate-ring-fill -rotate-90 origin-center drop-shadow-[0_0_6px_rgba(255,255,255,0.85)]"
-                        />
-                      </>
-                    )}
-                  </svg>
-                </button>
-              );
-            })}
+      {/* Persistent Right Coordinate & Slide Indicator Widget (Direct Child of Root Viewport Container) */}
+      <div className="fixed right-6 sm:right-12 lg:right-20 top-1/2 -translate-y-1/2 hidden md:flex items-start gap-7 sm:gap-9 select-none z-40">
+        {/* Hairline guide with sliding arrow pointer that points right directly into the active circle center */}
+        <div className="relative flex flex-col justify-between h-[168px] w-28 text-[11px] font-sans tracking-widest text-slate-400 pointer-events-none select-none">
+          {/* Dynamic arrow and label tracker */}
+          <div
+            className="absolute left-0 w-full flex items-center justify-between transition-all duration-500 ease-out"
+            style={{
+              top: `${activePageIndex * 48 + 14}px`,
+              transform: 'translateY(-50%)',
+            }}
+          >
+            <span className="text-[11px] tracking-[0.2em] font-sans font-bold text-white uppercase drop-shadow-[0_0_8px_rgba(255,255,255,0.4)]">
+              {guidelinePages[activePageIndex].title}
+            </span>
+            <div className="flex-1 mx-2.5 h-[1px] bg-gradient-to-r from-transparent via-cyan-500/40 to-cyan-400/80" />
+            <span className="text-[12px] text-cyan-400 font-bold drop-shadow-[0_0_6px_rgba(56,189,248,0.9)]">
+              ▸
+            </span>
           </div>
         </div>
 
+        {/* The 4 Simon Sparks Minimalist Synchronized Circles (Stacked with Connecting Hairline) */}
+        <div className="relative flex flex-col items-center gap-5">
+          {/* Subtle connecting vertical guide hairline behind circles */}
+          <div className="absolute top-3.5 bottom-3.5 w-[1px] bg-cyan-900/40 -z-10 pointer-events-none" />
+
+          {guidelinePages.map((page, idx) => {
+            const isActive = activePageIndex === idx;
+            return (
+              <button
+                key={page.id}
+                onClick={() => handlePageClick(idx)}
+                className="relative group cursor-pointer focus:outline-none focus-visible:ring-1 focus-visible:ring-cyan-400 rounded-full"
+                aria-label={`Go to ${page.title} (Page ${page.label})`}
+              >
+                <svg className="w-7 h-7 overflow-visible">
+                  {/* Outer Thin Static Ring Frame */}
+                  <circle
+                    cx="14"
+                    cy="14"
+                    r="9.5"
+                    fill="none"
+                    stroke={isActive ? "rgba(56, 189, 248, 0.45)" : "#0f2f55"}
+                    strokeWidth="1.2"
+                    className="transition-colors duration-300"
+                  />
+
+                  {/* Small Inactive Orbiting Dot / Anchor */}
+                  {!isActive && (
+                    <circle
+                      cx="14"
+                      cy="14"
+                      r="2.2"
+                      fill="#1a4674"
+                      className="group-hover:fill-cyan-400 transition-colors"
+                    />
+                  )}
+
+                  {/* Active State: Centered Bright White Solid Dot + Rotating Progress Stroke */}
+                  {isActive && (
+                    <>
+                      {/* Static Centered Solid Light Dot */}
+                      <circle
+                        cx="14"
+                        cy="14"
+                        r="2.4"
+                        fill="#ffffff"
+                        className="drop-shadow-[0_0_6px_rgba(255,255,255,1)]"
+                      />
+
+                      {/* Subtle Background Track */}
+                      <circle
+                        cx="14"
+                        cy="14"
+                        r="9.5"
+                        fill="none"
+                        stroke="rgba(255, 255, 255, 0.15)"
+                        strokeWidth="1.2"
+                      />
+
+                      {/* Animated Progress Stroke (Fills smoothly from 0% to 100% clockwise over 1 minute) */}
+                      <circle
+                        key={`fill-${activePageIndex}`}
+                        cx="14"
+                        cy="14"
+                        r="9.5"
+                        fill="none"
+                        stroke="#ffffff"
+                        strokeWidth="2.2"
+                        strokeLinecap="round"
+                        strokeDasharray="59.7"
+                        strokeDashoffset="59.7"
+                        onAnimationEnd={() => {
+                          if (activePageIndex === 0) {
+                            handlePageClick(1);
+                          }
+                        }}
+                        className="animate-ring-fill -rotate-90 origin-center drop-shadow-[0_0_6px_rgba(255,255,255,0.85)]"
+                      />
+                    </>
+                  )}
+                </svg>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* MAIN VIEWPORT CONTAINER */}
+      <main ref={mainRef} className="relative w-full h-full overflow-hidden select-none">
+        
         {/* 2. HERO SECTION — EXACT SIMON SPARKS FULL SCREEN COMPOSITION */}
         <section
           id="about"

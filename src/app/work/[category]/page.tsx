@@ -1430,7 +1430,7 @@ export default function CategoryShowcasePage({
       // Master Zoom-Out GSAP Timeline (camera pulls backward away from canvas)
       const tl = gsap.timeline({
         onComplete: () => {
-          router.push('/?section=work#portfolio');
+          router.push('/?section=work', { scroll: false });
         },
       });
 
