@@ -130,6 +130,8 @@ export default function CategoryShowcasePage({
 
   // Active Project Video Modal
   const [activeModalProject, setActiveModalProject] = useState<CategoryProject | null>(null);
+  const activeModalProjectRef = useRef<CategoryProject | null>(null);
+  activeModalProjectRef.current = activeModalProject;
   const [isModalClosing, setIsModalClosing] = useState(false);
 
   // Hovered item for List View Preview
@@ -744,9 +746,10 @@ export default function CategoryShowcasePage({
           }
         }
 
-        // Live Video Auto-Play with Audio Fade-In for Centered Card
+        // Live Video Auto-Play with Audio Fade-In for Centered Card (only when modal is NOT open)
         const centerTile = closestIdx !== -1 ? tiles[closestIdx] : null;
         if (
+          !activeModalProjectRef.current &&
           centerTile &&
           centerTile.youtubeId &&
           centerTile.ytIframeEl &&
@@ -759,7 +762,7 @@ export default function CategoryShowcasePage({
             centerTile.ytBadgeEl || null
           );
         } else if (activeVideoTileRef.current.isPlaying) {
-          if (!centerTile || !centerTile.youtubeId || minDist > 95) {
+          if (activeModalProjectRef.current || !centerTile || !centerTile.youtubeId || minDist > 95) {
             stopVideoWithAudioFadeOut();
           }
         }
@@ -1529,8 +1532,7 @@ export default function CategoryShowcasePage({
   }, [viewMode, saveStateToStorage]);
 
   // Handle Project Click:
-  // - If clicked card is outside the center: smoothly pan/center to that card
-  // - Zero popup: do not open video modal on 2D/Slider canvas, keep screen completely clean!
+  // - Open full video modal popup when clicked/pressed
   const handleProjectClick = (
     e: React.MouseEvent<HTMLElement>,
     project: CategoryProject,
@@ -1541,36 +1543,11 @@ export default function CategoryShowcasePage({
       return;
     }
 
-    // In List view, row click opens the project modal
-    if (viewMode === 'list') {
-      setActiveModalProject(project);
-      return;
-    }
+    // Stop background card audio fade if opening modal
+    stopVideoWithAudioFadeOut();
 
-    // On 2D Canvas & Slider: smoothly pan to center the clicked card, zero popup!
-    if (typeof window !== 'undefined') {
-      const cardEl = e.currentTarget;
-      const rect = cardEl.getBoundingClientRect();
-      const cardCenterX = rect.left + rect.width / 2;
-      const cardCenterY = rect.top + rect.height / 2;
-      const scX = window.innerWidth / 2;
-      const scY = window.innerHeight / 2;
-
-      const deltaX = scX - cardCenterX;
-      const deltaY = scY - cardCenterY;
-
-      if (Math.hypot(deltaX, deltaY) > 4) {
-        const nextX = currentPanRef.current.x + deltaX;
-        const nextY = currentPanRef.current.y + deltaY;
-
-        const snap = getSnapCoordinates(nextX, nextY, viewMode);
-        targetPanRef.current.x = snap.x;
-        if (viewMode === 'grid') {
-          targetPanRef.current.y = snap.y;
-        }
-        saveStateToStorage(viewMode, snap.x, viewMode === 'grid' ? snap.y : 0);
-      }
-    }
+    // Open full video modal popup
+    setActiveModalProject(project);
   };
 
   // Cinematic Zoom-Out Exit Transition returning to Work section
@@ -1815,12 +1792,22 @@ export default function CategoryShowcasePage({
                           </div>
                           {project.youtube_id && (
                             <div className="yt-live-layer absolute inset-0 w-full h-full overflow-hidden pointer-events-none opacity-0 transition-opacity duration-700 z-10 bg-black">
-                              <iframe
-                                data-yt-card={project.youtube_id}
-                                src={`https://www.youtube.com/embed/${project.youtube_id}?enablejsapi=1&autoplay=1&controls=0&mute=1&loop=1&playlist=${project.youtube_id}&playsinline=1&rel=0&showinfo=0&iv_load_policy=3&modestbranding=1&disablekb=1&fs=0`}
-                                className="w-full h-full object-cover pointer-events-none scale-[1.38]"
-                                allow="autoplay; encrypted-media; picture-in-picture"
-                              />
+                              <div className="absolute inset-0 flex items-center justify-center overflow-hidden pointer-events-none">
+                                <iframe
+                                  data-yt-card={project.youtube_id}
+                                  src={`https://www.youtube.com/embed/${project.youtube_id}?enablejsapi=1&autoplay=1&controls=0&mute=1&loop=1&playlist=${project.youtube_id}&playsinline=1&rel=0&showinfo=0&iv_load_policy=3&modestbranding=1&disablekb=1&fs=0`}
+                                  style={{
+                                    width: '340%',
+                                    height: '135%',
+                                    minWidth: '340%',
+                                    minHeight: '135%',
+                                    maxWidth: 'none',
+                                    maxHeight: 'none',
+                                  }}
+                                  className="shrink-0 pointer-events-none border-0"
+                                  allow="autoplay; encrypted-media; picture-in-picture"
+                                />
+                              </div>
                               <div className="yt-audio-indicator absolute bottom-4 right-4 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/80 backdrop-blur-md border border-cyan-400/50 text-[9px] font-mono text-cyan-300 opacity-0 transition-opacity duration-500 shadow-[0_0_15px_rgba(56,189,248,0.4)]">
                                 <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
                                 <span className="tracking-widest font-bold">AUDIO ON</span>
@@ -1917,12 +1904,22 @@ export default function CategoryShowcasePage({
                       </div>
                       {project.youtube_id && (
                         <div className="yt-live-layer absolute inset-0 w-full h-full overflow-hidden pointer-events-none opacity-0 transition-opacity duration-700 z-10 bg-black">
-                          <iframe
-                            data-yt-card={project.youtube_id}
-                            src={`https://www.youtube.com/embed/${project.youtube_id}?enablejsapi=1&autoplay=1&controls=0&mute=1&loop=1&playlist=${project.youtube_id}&playsinline=1&rel=0&showinfo=0&iv_load_policy=3&modestbranding=1&disablekb=1&fs=0`}
-                            className="w-full h-full object-cover pointer-events-none scale-[1.38]"
-                            allow="autoplay; encrypted-media; picture-in-picture"
-                          />
+                          <div className="absolute inset-0 flex items-center justify-center overflow-hidden pointer-events-none">
+                            <iframe
+                              data-yt-card={project.youtube_id}
+                              src={`https://www.youtube.com/embed/${project.youtube_id}?enablejsapi=1&autoplay=1&controls=0&mute=1&loop=1&playlist=${project.youtube_id}&playsinline=1&rel=0&showinfo=0&iv_load_policy=3&modestbranding=1&disablekb=1&fs=0`}
+                              style={{
+                                width: '340%',
+                                height: '135%',
+                                minWidth: '340%',
+                                minHeight: '135%',
+                                maxWidth: 'none',
+                                maxHeight: 'none',
+                              }}
+                              className="shrink-0 pointer-events-none border-0"
+                              allow="autoplay; encrypted-media; picture-in-picture"
+                            />
+                          </div>
                           <div className="yt-audio-indicator absolute bottom-4 right-4 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/80 backdrop-blur-md border border-cyan-400/50 text-[9px] font-mono text-cyan-300 opacity-0 transition-opacity duration-500 shadow-[0_0_15px_rgba(56,189,248,0.4)]">
                             <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
                             <span className="tracking-widest font-bold">AUDIO ON</span>
@@ -2082,11 +2079,15 @@ export default function CategoryShowcasePage({
               </button>
             </div>
 
-            {/* Cinema Video Player (2.39:1 Anamorphic Scope) */}
-            <div className="relative w-full aspect-[2.39/1] bg-black overflow-hidden flex items-center justify-center">
+            {/* Full Cinema Video Player (16:9 widescreen or 2.39:1 scope) */}
+            <div
+              className={`relative w-full ${
+                activeModalProject.youtube_id ? 'aspect-video' : 'aspect-[2.39/1]'
+              } bg-black overflow-hidden flex items-center justify-center`}
+            >
               {activeModalProject.youtube_id ? (
                 <iframe
-                  src={`https://www.youtube.com/embed/${activeModalProject.youtube_id}?autoplay=1&rel=0&showinfo=0`}
+                  src={`https://www.youtube.com/embed/${activeModalProject.youtube_id}?autoplay=1&controls=1&rel=0&playsinline=1`}
                   title={activeModalProject.title}
                   className="w-full h-full border-0"
                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
