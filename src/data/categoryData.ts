@@ -15,6 +15,7 @@ export interface CategoryProject {
   colorScience?: string;
   stillsCount?: number;
   youtube_id?: string;
+  preview_video?: string;
 }
 
 export interface CategoryShowcase {
@@ -63,7 +64,8 @@ export const CATEGORY_DATA: Record<string, CategoryShowcase> = {
         tag: 'Commercial',
         role: 'Commercial Video Production & Post',
         thumbnail: 'https://i.ytimg.com/vi/nmuTsf8p21c/hqdefault.jpg',
-        video_url: 'https://www.youtube.com/watch?v=nmuTsf8p21c',
+        video_url: '/videos/tanoshii-strawberry.mp4',
+        preview_video: '/videos/tanoshii-strawberry.mp4',
         youtube_id: 'nmuTsf8p21c',
         description: 'Iklan komersial sinematik Tanoshii Strawberry Spray yang diproduksi dan diedit oleh ReGrid dengan color grading premium, sound design punchy, dan visual produk memikat.',
         tags: ['Commercial', 'Product Video', 'ReGrid', 'DaVinci Resolve'],

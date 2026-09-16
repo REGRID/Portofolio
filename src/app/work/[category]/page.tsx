@@ -167,6 +167,9 @@ export default function CategoryShowcasePage({
     lastPx?: number;
     lastPy?: number;
     lastOpacity?: number;
+    videoEl?: HTMLVideoElement | null;
+    videoLayerEl?: HTMLElement | null;
+    videoBadgeEl?: HTMLElement | null;
     youtubeId?: string;
     ytLayerEl?: HTMLElement | null;
     ytIframeEl?: HTMLIFrameElement | null;
@@ -175,8 +178,9 @@ export default function CategoryShowcasePage({
 
   const cachedTilesRef = useRef<CachedTile[]>([]);
 
-  // Active Center Card Video & Audio Fade Controller
+  // Active Center Card Video & Audio Fade Controller (Pure HTML5 Video + Iframe Fallback)
   const activeVideoTileRef = useRef<{
+    video: HTMLVideoElement | null;
     iframe: HTMLIFrameElement | null;
     layer: HTMLElement | null;
     badge: HTMLElement | null;
@@ -184,6 +188,7 @@ export default function CategoryShowcasePage({
     currentVolume: number;
     isPlaying: boolean;
   }>({
+    video: null,
     iframe: null,
     layer: null,
     badge: null,
@@ -193,77 +198,142 @@ export default function CategoryShowcasePage({
   });
 
   const startVideoWithAudioFadeIn = useCallback((
-    iframe: HTMLIFrameElement,
+    target: { video?: HTMLVideoElement | null; iframe?: HTMLIFrameElement | null },
     layer: HTMLElement,
     badge: HTMLElement | null
   ) => {
     const state = activeVideoTileRef.current;
-    if (state.iframe === iframe && state.isPlaying) return;
+    if (
+      (target.video && state.video === target.video && state.isPlaying) ||
+      (target.iframe && state.iframe === target.iframe && state.isPlaying)
+    ) {
+      return;
+    }
 
-    // Pause previous video if different
-    if (state.iframe && state.iframe !== iframe) {
+    // Stop previous video if different
+    if (state.video && state.video !== target.video) {
+      state.video.pause();
+      state.video.muted = true;
+    }
+    if (state.iframe && state.iframe !== target.iframe) {
       postYt(state.iframe, 'pauseVideo');
-      if (state.layer) state.layer.style.opacity = '0';
-      if (state.badge) state.badge.style.opacity = '0';
+    }
+    if (state.layer && state.layer !== layer) {
+      state.layer.style.opacity = '0';
+    }
+    if (state.badge && state.badge !== badge) {
+      state.badge.style.opacity = '0';
     }
 
     if (state.fadeTimer) clearInterval(state.fadeTimer);
 
-    state.iframe = iframe;
+    state.video = target.video || null;
+    state.iframe = target.iframe || null;
     state.layer = layer;
     state.badge = badge;
     state.isPlaying = true;
     state.currentVolume = 0;
 
-    // Smoothly reveal live video layer & sound badge
     layer.style.opacity = '1';
     if (badge) badge.style.opacity = '1';
 
-    // Start playback & unMute with volume 0
-    postYt(iframe, 'playVideo');
-    postYt(iframe, 'unMute');
-    postYt(iframe, 'setVolume', [0]);
-
-    // Audio Fade-In: Increment volume smoothly from 0% to 100% over ~1100ms
-    let vol = 0;
-    state.fadeTimer = setInterval(() => {
-      vol += 5;
-      if (vol >= 100) {
-        vol = 100;
-        if (state.fadeTimer) clearInterval(state.fadeTimer);
+    if (target.video) {
+      const v = target.video;
+      v.muted = false;
+      v.volume = 0;
+      const playPromise = v.play();
+      if (playPromise !== undefined) {
+        playPromise.catch(() => {
+          v.muted = true;
+          v.play();
+        });
       }
-      state.currentVolume = vol;
-      postYt(iframe, 'setVolume', [vol]);
-    }, 45);
+      let vol = 0;
+      state.fadeTimer = setInterval(() => {
+        vol += 0.08;
+        if (vol >= 1.0) {
+          vol = 1.0;
+          if (state.fadeTimer) clearInterval(state.fadeTimer);
+        }
+        state.currentVolume = vol * 100;
+        try {
+          if (!v.muted) v.volume = Math.min(1, vol);
+        } catch {}
+      }, 40);
+    } else if (target.iframe) {
+      const iframe = target.iframe;
+      postYt(iframe, 'playVideo');
+      postYt(iframe, 'unMute');
+      postYt(iframe, 'setVolume', [0]);
+      let vol = 0;
+      state.fadeTimer = setInterval(() => {
+        vol += 5;
+        if (vol >= 100) {
+          vol = 100;
+          if (state.fadeTimer) clearInterval(state.fadeTimer);
+        }
+        state.currentVolume = vol;
+        postYt(iframe, 'setVolume', [vol]);
+      }, 45);
+    }
   }, []);
 
   const stopVideoWithAudioFadeOut = useCallback(() => {
     const state = activeVideoTileRef.current;
-    if (!state.isPlaying || !state.iframe) return;
+    if (!state.isPlaying) return;
 
     if (state.fadeTimer) clearInterval(state.fadeTimer);
+    const video = state.video;
     const iframe = state.iframe;
     const layer = state.layer;
     const badge = state.badge;
 
-    // Audio Fade-Out: Decrement volume smoothly over ~350ms
-    let vol = state.currentVolume;
-    state.fadeTimer = setInterval(() => {
-      vol -= 14;
-      if (vol <= 0) {
-        vol = 0;
-        if (state.fadeTimer) clearInterval(state.fadeTimer);
-        postYt(iframe, 'pauseVideo');
-        if (layer) layer.style.opacity = '0';
-        if (badge) badge.style.opacity = '0';
-        state.isPlaying = false;
-        state.iframe = null;
-        state.layer = null;
-        state.badge = null;
-      } else {
-        postYt(iframe, 'setVolume', [vol]);
-      }
-    }, 30);
+    if (video) {
+      let vol = video.muted ? 0 : video.volume;
+      state.fadeTimer = setInterval(() => {
+        vol -= 0.15;
+        if (vol <= 0) {
+          vol = 0;
+          if (state.fadeTimer) clearInterval(state.fadeTimer);
+          try {
+            video.volume = 0;
+            video.pause();
+          } catch {}
+          if (layer) layer.style.opacity = '0';
+          if (badge) badge.style.opacity = '0';
+          state.isPlaying = false;
+          state.video = null;
+          state.layer = null;
+          state.badge = null;
+        } else {
+          try {
+            if (!video.muted) video.volume = Math.max(0, vol);
+          } catch {}
+        }
+      }, 30);
+    } else if (iframe) {
+      let vol = state.currentVolume;
+      state.fadeTimer = setInterval(() => {
+        vol -= 14;
+        if (vol <= 0) {
+          vol = 0;
+          if (state.fadeTimer) clearInterval(state.fadeTimer);
+          postYt(iframe, 'pauseVideo');
+          if (layer) layer.style.opacity = '0';
+          if (badge) badge.style.opacity = '0';
+          state.isPlaying = false;
+          state.iframe = null;
+          state.layer = null;
+          state.badge = null;
+        } else {
+          postYt(iframe, 'setVolume', [vol]);
+        }
+      }, 30);
+    } else {
+      if (layer) layer.style.opacity = '0';
+      if (badge) badge.style.opacity = '0';
+      state.isPlaying = false;
+    }
   }, []);
 
   // Filtered project list
@@ -337,6 +407,9 @@ export default function CategoryShowcasePage({
               const colorOverlay = el?.querySelector<HTMLElement>('.color-overlay');
               const projIdx = (col + row) % displayProjects.length;
               const project = displayProjects[projIdx];
+              const videoLayer = el?.querySelector<HTMLElement>('.card-video-layer');
+              const videoEl = el?.querySelector<HTMLVideoElement>('video[data-card-video]');
+              const videoBadge = el?.querySelector<HTMLElement>('.card-audio-indicator');
               const ytLayer = el?.querySelector<HTMLElement>('.yt-live-layer');
               const ytIframe = el?.querySelector<HTMLIFrameElement>('iframe[data-yt-card]');
               const ytBadge = el?.querySelector<HTMLElement>('.yt-audio-indicator');
@@ -351,6 +424,9 @@ export default function CategoryShowcasePage({
                   height: TILE_HEIGHT,
                   visible: false,
                   wasVisible: false,
+                  videoEl: videoEl,
+                  videoLayerEl: videoLayer,
+                  videoBadgeEl: videoBadge,
                   youtubeId: project?.youtube_id,
                   ytLayerEl: ytLayer,
                   ytIframeEl: ytIframe,
@@ -368,6 +444,9 @@ export default function CategoryShowcasePage({
           const el = document.getElementById(id);
           const wrapper = el?.querySelector<HTMLElement>('.parallax-wrapper');
           const colorOverlay = el?.querySelector<HTMLElement>('.color-overlay');
+          const videoLayer = el?.querySelector<HTMLElement>('.card-video-layer');
+          const videoEl = el?.querySelector<HTMLVideoElement>('video[data-card-video]');
+          const videoBadge = el?.querySelector<HTMLElement>('.card-audio-indicator');
           const ytLayer = el?.querySelector<HTMLElement>('.yt-live-layer');
           const ytIframe = el?.querySelector<HTMLIFrameElement>('iframe[data-yt-card]');
           const ytBadge = el?.querySelector<HTMLElement>('.yt-audio-indicator');
@@ -382,6 +461,9 @@ export default function CategoryShowcasePage({
               height: SLIDER_CARD_HEIGHT,
               visible: false,
               wasVisible: false,
+              videoEl: videoEl,
+              videoLayerEl: videoLayer,
+              videoBadgeEl: videoBadge,
               youtubeId: project?.youtube_id,
               ytLayerEl: ytLayer,
               ytIframeEl: ytIframe,
@@ -746,23 +828,25 @@ export default function CategoryShowcasePage({
           }
         }
 
-        // Live Video Auto-Play with Audio Fade-In for Centered Card (only when modal is NOT open)
+        // Live Video Auto-Play with Audio Fade-In (ONLY when card is at the colored point!)
         const centerTile = closestIdx !== -1 ? tiles[closestIdx] : null;
+        // In this design, a card reaches its colored point when minDist < 70
+        const isAtColoredPoint = Boolean(centerTile && minDist < 70);
+
         if (
           !activeModalProjectRef.current &&
+          isAtColoredPoint &&
           centerTile &&
-          centerTile.youtubeId &&
-          centerTile.ytIframeEl &&
-          centerTile.ytLayerEl &&
-          minDist <= 75
+          (centerTile.videoEl || centerTile.ytIframeEl) &&
+          (centerTile.videoLayerEl || centerTile.ytLayerEl)
         ) {
           startVideoWithAudioFadeIn(
-            centerTile.ytIframeEl,
-            centerTile.ytLayerEl,
-            centerTile.ytBadgeEl || null
+            { video: centerTile.videoEl, iframe: centerTile.ytIframeEl },
+            (centerTile.videoLayerEl || centerTile.ytLayerEl)!,
+            centerTile.videoBadgeEl || centerTile.ytBadgeEl || null
           );
         } else if (activeVideoTileRef.current.isPlaying) {
-          if (activeModalProjectRef.current || !centerTile || !centerTile.youtubeId || minDist > 95) {
+          if (activeModalProjectRef.current || !isAtColoredPoint || minDist >= 70) {
             stopVideoWithAudioFadeOut();
           }
         }
@@ -1790,7 +1874,23 @@ export default function CategoryShowcasePage({
                               className="color-img w-full h-full object-cover pointer-events-none"
                             />
                           </div>
-                          {project.youtube_id && (
+                          {project.preview_video ? (
+                            <div className="card-video-layer absolute inset-0 w-full h-full overflow-hidden pointer-events-none opacity-0 transition-opacity duration-500 z-10 bg-black">
+                              <video
+                                data-card-video={project.id}
+                                src={project.preview_video}
+                                loop
+                                muted
+                                playsInline
+                                preload="auto"
+                                className="w-full h-full object-cover pointer-events-none"
+                              />
+                              <div className="card-audio-indicator absolute bottom-4 right-4 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/80 backdrop-blur-md border border-cyan-400/50 text-[9px] font-mono text-cyan-300 opacity-0 transition-opacity duration-300 shadow-[0_0_15px_rgba(56,189,248,0.4)]">
+                                <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
+                                <span className="tracking-widest font-bold">AUDIO ON</span>
+                              </div>
+                            </div>
+                          ) : project.youtube_id ? (
                             <div className="yt-live-layer absolute inset-0 w-full h-full overflow-hidden pointer-events-none opacity-0 transition-opacity duration-700 z-10 bg-black">
                               <div className="absolute inset-0 flex items-center justify-center overflow-hidden pointer-events-none">
                                 <iframe
@@ -1813,7 +1913,7 @@ export default function CategoryShowcasePage({
                                 <span className="tracking-widest font-bold">AUDIO ON</span>
                               </div>
                             </div>
-                          )}
+                          ) : null}
                         </div>
                       </div>
                     );
@@ -1902,7 +2002,23 @@ export default function CategoryShowcasePage({
                           className="color-img w-full h-full object-cover pointer-events-none"
                         />
                       </div>
-                      {project.youtube_id && (
+                      {project.preview_video ? (
+                        <div className="card-video-layer absolute inset-0 w-full h-full overflow-hidden pointer-events-none opacity-0 transition-opacity duration-500 z-10 bg-black">
+                          <video
+                            data-card-video={project.id}
+                            src={project.preview_video}
+                            loop
+                            muted
+                            playsInline
+                            preload="auto"
+                            className="w-full h-full object-cover pointer-events-none"
+                          />
+                          <div className="card-audio-indicator absolute bottom-4 right-4 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/80 backdrop-blur-md border border-cyan-400/50 text-[9px] font-mono text-cyan-300 opacity-0 transition-opacity duration-300 shadow-[0_0_15px_rgba(56,189,248,0.4)]">
+                            <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
+                            <span className="tracking-widest font-bold">AUDIO ON</span>
+                          </div>
+                        </div>
+                      ) : project.youtube_id ? (
                         <div className="yt-live-layer absolute inset-0 w-full h-full overflow-hidden pointer-events-none opacity-0 transition-opacity duration-700 z-10 bg-black">
                           <div className="absolute inset-0 flex items-center justify-center overflow-hidden pointer-events-none">
                             <iframe
@@ -1925,7 +2041,7 @@ export default function CategoryShowcasePage({
                             <span className="tracking-widest font-bold">AUDIO ON</span>
                           </div>
                         </div>
-                      )}
+                      ) : null}
                     </div>
                   </div>
                 );
@@ -2082,10 +2198,18 @@ export default function CategoryShowcasePage({
             {/* Full Cinema Video Player (16:9 widescreen or 2.39:1 scope) */}
             <div
               className={`relative w-full ${
-                activeModalProject.youtube_id ? 'aspect-video' : 'aspect-[2.39/1]'
+                activeModalProject.aspectRatio === '16:9 Cinema' ? 'aspect-video' : 'aspect-[2.39/1]'
               } bg-black overflow-hidden flex items-center justify-center`}
             >
-              {activeModalProject.youtube_id ? (
+              {activeModalProject.preview_video || activeModalProject.video_url?.endsWith('.mp4') ? (
+                <video
+                  src={activeModalProject.preview_video || activeModalProject.video_url}
+                  controls
+                  autoPlay
+                  className="w-full h-full object-cover"
+                  poster={activeModalProject.thumbnail}
+                />
+              ) : activeModalProject.youtube_id ? (
                 <iframe
                   src={`https://www.youtube.com/embed/${activeModalProject.youtube_id}?autoplay=1&controls=1&rel=0&playsinline=1`}
                   title={activeModalProject.title}
