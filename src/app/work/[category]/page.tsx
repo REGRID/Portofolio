@@ -1817,9 +1817,9 @@ export default function CategoryShowcasePage({
                             <div className="yt-live-layer absolute inset-0 w-full h-full overflow-hidden pointer-events-none opacity-0 transition-opacity duration-700 z-10 bg-black">
                               <iframe
                                 data-yt-card={project.youtube_id}
-                                src={`https://www.youtube.com/embed/${project.youtube_id}?enablejsapi=1&autoplay=0&controls=0&mute=1&loop=1&playlist=${project.youtube_id}&playsinline=1&rel=0&showinfo=0&iv_load_policy=3&modestbranding=1&disablekb=1&fs=0`}
+                                src={`https://www.youtube.com/embed/${project.youtube_id}?enablejsapi=1&autoplay=1&controls=0&mute=1&loop=1&playlist=${project.youtube_id}&playsinline=1&rel=0&showinfo=0&iv_load_policy=3&modestbranding=1&disablekb=1&fs=0`}
                                 className="w-full h-full object-cover pointer-events-none scale-[1.38]"
-                                allow="autoplay; encrypted-media"
+                                allow="autoplay; encrypted-media; picture-in-picture"
                               />
                               <div className="yt-audio-indicator absolute bottom-4 right-4 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/80 backdrop-blur-md border border-cyan-400/50 text-[9px] font-mono text-cyan-300 opacity-0 transition-opacity duration-500 shadow-[0_0_15px_rgba(56,189,248,0.4)]">
                                 <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
@@ -1919,9 +1919,9 @@ export default function CategoryShowcasePage({
                         <div className="yt-live-layer absolute inset-0 w-full h-full overflow-hidden pointer-events-none opacity-0 transition-opacity duration-700 z-10 bg-black">
                           <iframe
                             data-yt-card={project.youtube_id}
-                            src={`https://www.youtube.com/embed/${project.youtube_id}?enablejsapi=1&autoplay=0&controls=0&mute=1&loop=1&playlist=${project.youtube_id}&playsinline=1&rel=0&showinfo=0&iv_load_policy=3&modestbranding=1&disablekb=1&fs=0`}
+                            src={`https://www.youtube.com/embed/${project.youtube_id}?enablejsapi=1&autoplay=1&controls=0&mute=1&loop=1&playlist=${project.youtube_id}&playsinline=1&rel=0&showinfo=0&iv_load_policy=3&modestbranding=1&disablekb=1&fs=0`}
                             className="w-full h-full object-cover pointer-events-none scale-[1.38]"
-                            allow="autoplay; encrypted-media"
+                            allow="autoplay; encrypted-media; picture-in-picture"
                           />
                           <div className="yt-audio-indicator absolute bottom-4 right-4 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/80 backdrop-blur-md border border-cyan-400/50 text-[9px] font-mono text-cyan-300 opacity-0 transition-opacity duration-500 shadow-[0_0_15px_rgba(56,189,248,0.4)]">
                             <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
