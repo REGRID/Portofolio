@@ -14,6 +14,7 @@ export interface CategoryProject {
   aspectRatio?: string;
   colorScience?: string;
   stillsCount?: number;
+  youtube_id?: string;
 }
 
 export interface CategoryShowcase {
@@ -54,19 +55,20 @@ export const CATEGORY_DATA: Record<string, CategoryShowcase> = {
     projects: [
       {
         id: 'comm-1',
-        title: 'Netflix @ Comic Con CPT',
-        client: 'Netflix',
+        title: 'Tanoshii Strawberry Spray',
+        client: 'ReGrid / Tanoshii',
         year: '2024',
-        duration: '01:25',
+        duration: '00:30',
         type: 'motion',
-        tag: 'Events',
-        role: 'Lead Video Editor',
-        thumbnail: 'https://images.unsplash.com/photo-1578632767115-351597cf2477?w=1200&q=80',
-        video_url: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
-        description: 'Penyuntingan video komersial aktivasi cosplay berenergi tinggi dengan pencahayaan neon intens dan beat match dinamis.',
-        tags: ['Netflix', 'Events', 'Neon Grade', 'Speed Ramp'],
+        tag: 'Commercial',
+        role: 'Commercial Video Production & Post',
+        thumbnail: 'https://i.ytimg.com/vi/nmuTsf8p21c/hqdefault.jpg',
+        video_url: 'https://www.youtube.com/watch?v=nmuTsf8p21c',
+        youtube_id: 'nmuTsf8p21c',
+        description: 'Iklan komersial sinematik Tanoshii Strawberry Spray yang diproduksi dan diedit oleh ReGrid dengan color grading premium, sound design punchy, dan visual produk memikat.',
+        tags: ['Commercial', 'Product Video', 'ReGrid', 'DaVinci Resolve'],
         aspectRatio: '16:9 Cinema',
-        colorScience: 'ACEScc Rec.709 Neon Contrast',
+        colorScience: 'DaVinci Resolve Studio Film Print',
       },
       {
         id: 'comm-2',
