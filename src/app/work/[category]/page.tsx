@@ -40,9 +40,9 @@ const SLIDER_CARD_HEIGHT = 620; // Exact matched aspect ratio to TILE (345x475 -
 const SLIDER_CARD_GAP = 0; // Seamless continuous filmstrip
 const SLIDER_STRIDE = SLIDER_CARD_WIDTH + SLIDER_CARD_GAP; // 450px
 
-const BLOCK_X_OFFSETS = [0, 1, 2];
+const BLOCK_X_OFFSETS = [0, 1];
 const BLOCK_Y_OFFSETS = [0, 1];
-const SLIDER_OFFSETS = [-1, 0, 1];
+const SLIDER_OFFSETS = [0, 1];
 
 // Mathematical continuous modulo function strictly bounded in [-max, 0]
 function wrapRange(val: number, max: number): number {
@@ -147,6 +147,10 @@ export default function CategoryShowcasePage({
       height: number;
       dist?: number;
       visible?: boolean;
+      wasVisible?: boolean;
+      lastPx?: number;
+      lastPy?: number;
+      lastOpacity?: number;
     }>
   >([]);
 
@@ -183,6 +187,7 @@ export default function CategoryShowcasePage({
   const targetPanRef = useRef(initialPan);
   const currentPanRef = useRef({ ...initialPan });
   const isDraggingRef = useRef(false);
+  const isWheelingRef = useRef(false);
   const dragIntentActiveRef = useRef(false);
   const dragStartTimeRef = useRef(0);
   const strokeAccumulatorRef = useRef(0);
@@ -215,6 +220,11 @@ export default function CategoryShowcasePage({
       localY: number;
       width: number;
       height: number;
+      visible?: boolean;
+      wasVisible?: boolean;
+      lastPx?: number;
+      lastPy?: number;
+      lastOpacity?: number;
     }> = [];
 
     if (viewMode === 'grid') {
@@ -235,6 +245,8 @@ export default function CategoryShowcasePage({
                   localY: by * BLOCK_HEIGHT + row * STEP_Y,
                   width: TILE_WIDTH,
                   height: TILE_HEIGHT,
+                  visible: false,
+                  wasVisible: false,
                 });
               }
             }
@@ -257,6 +269,8 @@ export default function CategoryShowcasePage({
               localY: 0,
               width: SLIDER_CARD_WIDTH,
               height: SLIDER_CARD_HEIGHT,
+              visible: false,
+              wasVisible: false,
             });
           }
         });
@@ -446,9 +460,8 @@ export default function CategoryShowcasePage({
     let rafId: number;
 
     const tick = () => {
-      // S-Curve Velocity Chase & Deceleration Engine:
-      // Calibrated for luxurious, silky fluid inertia
-      let chaseEase = 0.055;
+      // Ultra-responsive, weightless 60-120 FPS Lerp & Inertia physics
+      let chaseEase = 0.24;
 
       if (isTransitioningRef.current) {
         velocityRef.current.vx = 0;
@@ -458,27 +471,16 @@ export default function CategoryShowcasePage({
       }
 
       if (isDraggingRef.current) {
-        if (!dragIntentActiveRef.current) {
-          chaseEase = 0.035;
-        } else {
-          const dx = targetPanRef.current.x - currentPanRef.current.x;
-          const dy = targetPanRef.current.y - currentPanRef.current.y;
-          const distToTarget = Math.hypot(dx, dy);
-          const pointerSpeed = Math.hypot(
-            velocityRef.current.vx,
-            velocityRef.current.vy
-          );
-
-          // Calibrated smooth chase: gentle start, silky tracking, soft settling
-          const distBoost = Math.min(0.04, (distToTarget / 600) * 0.04);
-          const speedBoost = Math.min(0.03, pointerSpeed * 0.02);
-          chaseEase = 0.08 + distBoost + speedBoost;
-        }
+        // Active pointer drag: instantaneous, agile tracking with zero perceived lag
+        chaseEase = 0.28;
+      } else if (isWheelingRef.current) {
+        // Active wheel scrolling: light, fluid, highly responsive
+        chaseEase = 0.22;
       } else {
-        // Friction decay on velocity when released (curva velocity ease in-out deceleration)
-        velocityRef.current.vx *= 0.92;
-        velocityRef.current.vy *= 0.92;
-        chaseEase = 0.055;
+        // Snappy, authoritative docking into exact card center
+        velocityRef.current.vx *= 0.90;
+        velocityRef.current.vy *= 0.90;
+        chaseEase = 0.24;
       }
 
       currentPanRef.current.x +=
@@ -487,11 +489,11 @@ export default function CategoryShowcasePage({
         (targetPanRef.current.y - currentPanRef.current.y) * chaseEase;
 
       // Lock subpixel precision when settled to eliminate micro-jitter
-      if (!isDraggingRef.current) {
-        if (Math.abs(targetPanRef.current.x - currentPanRef.current.x) < 0.04) {
+      if (!isDraggingRef.current && !isWheelingRef.current) {
+        if (Math.abs(targetPanRef.current.x - currentPanRef.current.x) < 0.4) {
           currentPanRef.current.x = targetPanRef.current.x;
         }
-        if (Math.abs(targetPanRef.current.y - currentPanRef.current.y) < 0.04) {
+        if (Math.abs(targetPanRef.current.y - currentPanRef.current.y) < 0.4) {
           currentPanRef.current.y = targetPanRef.current.y;
         }
       }
@@ -520,19 +522,18 @@ export default function CategoryShowcasePage({
           tiles = cachedTilesRef.current;
         }
         const tileCount = tiles.length;
-        const lagX = Math.max(-8, Math.min(8, -velocityRef.current.vx * 6));
-        const lagY = Math.max(-8, Math.min(8, -velocityRef.current.vy * 6));
+        const lagX = Math.max(-8, Math.min(8, -velocityRef.current.vx * 4));
+        const lagY = Math.max(-8, Math.min(8, -velocityRef.current.vy * 4));
 
-        // Proximity configuration:
-        // r0: Full 100% color zone when a card is centered (dist <= 65px)
-        // r1: Outer boundary where color reaches 0% (dist >= 500px)
         const r0 = 65;
         const r1 = 500;
         const rDiff = r1 - r0;
 
-        // First pass: calculate parallax, screen distances, and track closest card
         let minDist = 9999;
         let closestIdx = -1;
+
+        const viewW = window.innerWidth;
+        const viewH = window.innerHeight;
 
         for (let i = 0; i < tileCount; i++) {
           const tile = tiles[i];
@@ -543,9 +544,9 @@ export default function CategoryShowcasePage({
           // Frustum culling: calculate parallax & color only for visible cards
           if (
             screenX > -tile.width &&
-            screenX < window.innerWidth + tile.width &&
+            screenX < viewW + tile.width &&
             screenY > -tile.height &&
-            screenY < window.innerHeight + tile.height
+            screenY < viewH + tile.height
           ) {
             const cardCenterX = screenX + tile.width / 2;
             const cardCenterY = isSlider ? scY : screenY + tile.height / 2;
@@ -557,22 +558,26 @@ export default function CategoryShowcasePage({
             const px = Math.max(-28, Math.min(28, -normX * 18 + lagX));
             const py = isSlider ? 0 : Math.max(-32, Math.min(32, -normY * 20 + lagY));
 
-            tile.wrapperEl.style.transform = `scale(1.22) translate3d(${px.toFixed(1)}px, ${py.toFixed(1)}px, 0)`;
+            // Only update transform if changed noticeably (avoids layout/style recalc)
+            if (
+              tile.lastPx === undefined ||
+              Math.abs(px - tile.lastPx) > 0.08 ||
+              Math.abs(py - (tile.lastPy || 0)) > 0.08
+            ) {
+              tile.wrapperEl.style.transform = `scale(1.22) translate3d(${px.toFixed(1)}px, ${py.toFixed(1)}px, 0)`;
+              tile.lastPx = px;
+              tile.lastPy = py;
+            }
 
             // Distance from card center to viewport center:
             const dist =
-              viewMode === 'slider'
+              isSlider
                 ? Math.abs(cardCenterX - scX)
                 : Math.hypot(cardCenterX - scX, cardCenterY - scY);
 
             tile.dist = dist;
             tile.visible = true;
-
-            // Uniform card dimensions across both Grid & Slider (zero pop-out/magnification, just like in grid)
-            if (!isTransitioningRef.current && tile.cardEl.style.transform) {
-              tile.cardEl.style.transform = '';
-            }
-            tile.cardEl.style.zIndex = '10';
+            tile.wasVisible = true;
 
             if (dist < minDist) {
               minDist = dist;
@@ -580,18 +585,19 @@ export default function CategoryShowcasePage({
             }
           } else {
             tile.visible = false;
-            tile.colorOverlayEl.style.opacity = '0';
+            // Only set opacity to 0 ONCE when it transitions from visible to off-screen!
+            if (tile.wasVisible) {
+              tile.wasVisible = false;
+              tile.colorOverlayEl.style.opacity = '0';
+              tile.lastOpacity = 0;
+            }
           }
         }
 
-        // Allowance for other (non-closest) cards:
-        // When 1 card is centered (minDist <= 55px): otherCardAllowance = 0.0 -> ONLY 1 card is colored!
-        // When panning towards 4-grid intersection (minDist increases):
-        // otherCardAllowance opens up to 1.0 so all 4 cards show their soft color!
         const tAllowance = Math.max(0, Math.min(1, (minDist - 55) / 150));
         const otherCardAllowance = tAllowance * tAllowance * (3 - 2 * tAllowance);
 
-        // Second pass: apply proximity color with center isolation
+        // Second pass: apply proximity color only on visible cards, only when opacity changes
         for (let i = 0; i < tileCount; i++) {
           const tile = tiles[i];
           if (!tile.visible || tile.dist === undefined) continue;
@@ -607,10 +613,14 @@ export default function CategoryShowcasePage({
             baseFactor = 0;
           }
 
-          // If closest card: full baseFactor (100% when centered)
-          // If other card: scaled by otherCardAllowance (0% when 1 card is centered)
           const finalFactor = i === closestIdx ? baseFactor : baseFactor * otherCardAllowance;
-          tile.colorOverlayEl.style.opacity = finalFactor.toFixed(3);
+          if (
+            tile.lastOpacity === undefined ||
+            Math.abs(finalFactor - tile.lastOpacity) > 0.005
+          ) {
+            tile.colorOverlayEl.style.opacity = finalFactor.toFixed(3);
+            tile.lastOpacity = finalFactor;
+          }
         }
       }
 
@@ -876,14 +886,24 @@ export default function CategoryShowcasePage({
       sliderHasScrolledRef.current = false;
       refreshCachedTiles();
       const scX = window.innerWidth / 2;
+      const curWx = wrapRange(currentPanRef.current.x, sliderBlockWidth);
+      if (canvasRef.current) {
+        canvasRef.current.style.transform = `translate3d(${curWx.toFixed(3)}px, 0, 0)`;
+      }
       cachedTilesRef.current.forEach((tile) => {
-        const screenX = tile.localX + wrapRange(currentPanRef.current.x, sliderBlockWidth);
+        const screenX = tile.localX + curWx;
         const cardCenterX = screenX + tile.width / 2;
         const dist = Math.abs(cardCenterX - scX);
-        tile.colorOverlayEl.style.opacity = dist < 70 ? '1' : '0';
+        const finalOpacity = dist < 70 ? 1 : 0;
+        tile.colorOverlayEl.style.opacity = String(finalOpacity);
+        tile.lastOpacity = finalOpacity;
         const normX = (cardCenterX - scX) / scX;
         const px = Math.max(-28, Math.min(28, -normX * 18));
         tile.wrapperEl.style.transform = `scale(1.22) translate3d(${px.toFixed(1)}px, 0px, 0px)`;
+        tile.lastPx = px;
+        tile.lastPy = 0;
+        tile.visible = true;
+        tile.wasVisible = true;
         tile.cardEl.style.transform = '';
       });
       isTransitioningRef.current = false;
@@ -938,10 +958,17 @@ export default function CategoryShowcasePage({
     // 4. Middle row zooms smoothly to slider default size (and vice versa)
     // =========================================================================
 
+    if (isDraggingRef.current) {
+      isDraggingRef.current = false;
+      dragIntentActiveRef.current = false;
+    }
+    if (isWheelingRef.current) {
+      isWheelingRef.current = false;
+    }
+    if (wheelSnapTimeoutRef.current) clearTimeout(wheelSnapTimeoutRef.current);
     isTransitioningRef.current = true;
     sliderHasScrolledRef.current = false;
     velocityRef.current = { vx: 0, vy: 0 };
-    targetPanRef.current = { ...currentPanRef.current };
 
     if (viewMode === 'grid' && newMode === 'slider') {
       // --- MODE 1: GRID -> SLIDER ---
@@ -996,6 +1023,7 @@ export default function CategoryShowcasePage({
       const focalCenterY = focalItem.centerY;
       const focalCenterX = focalItem.centerX;
       const focalIdx = focalItem.idx;
+      const focalMoveY = scY - focalCenterY;
 
       const topRowEls: HTMLElement[] = [];
       const bottomRowEls: HTMLElement[] = [];
@@ -1004,6 +1032,7 @@ export default function CategoryShowcasePage({
         deltaCol: number;
         currentCenterX: number;
         currentCenterY: number;
+        idx?: number;
       }> = [];
       const otherEls: HTMLElement[] = [];
 
@@ -1011,16 +1040,6 @@ export default function CategoryShowcasePage({
       const scaleY = SLIDER_CARD_HEIGHT / TILE_HEIGHT;
 
       allGridTiles.forEach((tile) => {
-        if (
-          tile.centerX < -500 ||
-          tile.centerX > window.innerWidth + 500 ||
-          tile.centerY < -500 ||
-          tile.centerY > window.innerHeight + 500
-        ) {
-          tile.cardEl.style.opacity = '0';
-          return;
-        }
-
         const dy = tile.centerY - focalCenterY;
         if (dy < -TILE_HEIGHT * 0.45) {
           topRowEls.push(tile.cardEl);
@@ -1035,6 +1054,7 @@ export default function CategoryShowcasePage({
               deltaCol,
               currentCenterX: tile.centerX,
               currentCenterY: tile.centerY,
+              idx: tile.idx,
             });
           } else {
             otherEls.push(tile.cardEl);
@@ -1042,121 +1062,113 @@ export default function CategoryShowcasePage({
         }
       });
 
-      // PHASE 1: "matikan paralax nya dulu"
-      // Smoothly glide all parallax wrappers to neutral center (scale 1.22, translate3d 0,0,0)
-      gsap.to('.parallax-wrapper', {
-        transform: 'scale(1.22) translate3d(0px, 0px, 0px)',
-        duration: 0.32,
-        ease: 'power2.out',
+      // Unified, liquid-smooth Grid -> Slider choreography (Zero glitch, zero collision)
+      const tl = gsap.timeline({
         onComplete: () => {
-          // PHASE 2: "buat isi dari card tidak bergerak, hanya card nya saja yang bergerak"
-          // Animate with a graceful S-curve velocity profile (power2.inOut)
-          const tl = gsap.timeline({
-            onComplete: () => {
-              const rawTargetX = scX - SLIDER_CARD_WIDTH / 2 - focalIdx * SLIDER_STRIDE;
-              const targetSliderPanX = wrapRange(rawTargetX, sliderBlockWidth);
-              currentPanRef.current = { x: targetSliderPanX, y: 0 };
-              targetPanRef.current = { x: targetSliderPanX, y: 0 };
+          const rawTargetX = scX - SLIDER_CARD_WIDTH / 2 - focalIdx * SLIDER_STRIDE;
+          const targetSliderPanX = wrapRange(rawTargetX, sliderBlockWidth);
+          currentPanRef.current = { x: targetSliderPanX, y: 0 };
+          targetPanRef.current = { x: targetSliderPanX, y: 0 };
 
-              setViewMode('slider');
-              saveStateToStorage('slider', targetSliderPanX, 0);
-            },
-          });
-
-          // Top row disperses upwards smoothly with ease-in-out
-          if (topRowEls.length > 0) {
-            tl.to(
-              topRowEls,
-              {
-                y: -340,
-                opacity: 0,
-                duration: 1.05,
-                ease: 'power2.inOut',
-              },
-              0
-            );
-          }
-
-          // Bottom row disperses downwards smoothly with ease-in-out
-          if (bottomRowEls.length > 0) {
-            tl.to(
-              bottomRowEls,
-              {
-                y: 340,
-                opacity: 0,
-                duration: 1.05,
-                ease: 'power2.inOut',
-              },
-              0
-            );
-          }
-
-          // Flank / outside cards fade out cleanly
-          if (otherEls.length > 0) {
-            tl.to(
-              otherEls,
-              {
-                opacity: 0,
-                duration: 0.45,
-                ease: 'power2.out',
-              },
-              0
-            );
-          }
-
-          // Middle row: only the card container moves and scales with S-curve ease-in-out
-          middleRowTiles.forEach((m) => {
-            m.cardEl.style.zIndex = String(30 - Math.min(10, Math.abs(m.deltaCol)));
-            const targetCenterX = scX + m.deltaCol * SLIDER_STRIDE;
-            const targetCenterY = scY;
-            const moveX = targetCenterX - m.currentCenterX;
-            const moveY = targetCenterY - m.currentCenterY;
-
-            tl.to(
-              m.cardEl,
-              {
-                x: moveX,
-                y: moveY,
-                scaleX: scaleX,
-                scaleY: scaleY,
-                transformOrigin: 'center center',
-                duration: 1.15,
-                ease: 'power2.inOut',
-              },
-              0
-            );
-
-            // Smooth velocity S-curve landing for card contents toward default slider parallax
-            const wrapper = m.cardEl.querySelector<HTMLElement>('.parallax-wrapper');
-            if (wrapper) {
-              const normX = (targetCenterX - scX) / scX;
-              const defaultPx = Math.max(-28, Math.min(28, -normX * 18));
-              tl.to(
-                wrapper,
-                {
-                  transform: `scale(1.22) translate3d(${defaultPx.toFixed(1)}px, 0px, 0px)`,
-                  duration: 0.8,
-                  ease: 'power2.inOut',
-                },
-                0.35
-              );
-            }
-
-            // Keep focal photo colored, neighbor cards soft monochrome
-            const overlay = m.cardEl.querySelector<HTMLElement>('.color-overlay');
-            if (overlay) {
-              tl.to(
-                overlay,
-                {
-                  opacity: m.deltaCol === 0 ? 1 : 0,
-                  duration: 0.95,
-                  ease: 'power2.inOut',
-                },
-                0
-              );
-            }
-          });
+          setViewMode('slider');
+          saveStateToStorage('slider', targetSliderPanX, 0);
         },
+      });
+
+      // 1. Top row disperses upwards with ease-in-out (guaranteed clean separation away from focal row)
+      if (topRowEls.length > 0) {
+        tl.to(
+          topRowEls,
+          {
+            y: Math.min(-380, focalMoveY - 320),
+            opacity: 0,
+            duration: 0.72,
+            ease: 'power2.inOut',
+          },
+          0
+        );
+      }
+
+      // 2. Bottom row disperses downwards with ease-in-out (guaranteed clean separation away from focal row)
+      if (bottomRowEls.length > 0) {
+        tl.to(
+          bottomRowEls,
+          {
+            y: Math.max(380, focalMoveY + 320),
+            opacity: 0,
+            duration: 0.72,
+            ease: 'power2.inOut',
+          },
+          0
+        );
+      }
+
+      // 3. Flank / outside cards fade out smoothly
+      if (otherEls.length > 0) {
+        tl.to(
+          otherEls,
+          {
+            opacity: 0,
+            duration: 0.45,
+            ease: 'power2.out',
+          },
+          0
+        );
+      }
+
+      // 4. Middle row cards scale to slider dimensions and slide into center horizontal filmstrip
+      middleRowTiles.forEach((m) => {
+        m.cardEl.style.zIndex = String(30 - Math.min(10, Math.abs(m.deltaCol)));
+        const targetCenterX = scX + m.deltaCol * SLIDER_STRIDE;
+        const targetCenterY = scY;
+        const moveX = targetCenterX - m.currentCenterX;
+        const moveY = targetCenterY - m.currentCenterY;
+
+        tl.to(
+          m.cardEl,
+          {
+            x: moveX,
+            y: moveY,
+            scaleX: scaleX,
+            scaleY: scaleY,
+            transformOrigin: 'center center',
+            duration: 0.75,
+            ease: 'power2.inOut',
+          },
+          0
+        );
+
+        // Smoothly calibrate image wrapper parallax to the slider focal perspective
+        const wrapper = m.cardEl.querySelector<HTMLElement>('.parallax-wrapper');
+        if (wrapper) {
+          const normX = (targetCenterX - scX) / scX;
+          const defaultPx = Math.max(-28, Math.min(28, -normX * 18));
+          // Compensate for parent card scaleX so on-screen image position exactly matches unscaled slider card
+          const compensatedPx = defaultPx / scaleX;
+          tl.to(
+            wrapper,
+            {
+              transform: `scale(1.22) translate3d(${compensatedPx.toFixed(1)}px, 0px, 0px)`,
+              duration: 0.75,
+              ease: 'power2.inOut',
+            },
+            0
+          );
+        }
+
+        // Keep focal photo colored (100%), neighbor cards smoothly fade color overlay
+        const overlay = m.cardEl.querySelector<HTMLElement>('.color-overlay');
+        if (overlay) {
+          tl.to(
+            overlay,
+            {
+              opacity: m.deltaCol === 0 ? 1 : 0,
+              duration: 0.6,
+              ease: 'power2.inOut',
+            },
+            0
+          );
+        }
       });
 
     } else if (viewMode === 'slider' && newMode === 'grid') {
@@ -1182,9 +1194,6 @@ export default function CategoryShowcasePage({
 
       sliderOffsetRef.current = sliderOffsetFromCenter;
 
-      // Follow the current slider card number into Grid mode using our 2D pattern:
-      // Pattern formula: (col + row) % N === centerIdx
-      // Maintain the previous grid row (or default to middle row of block):
       const targetRow =
         lastGridRowRef.current !== null ? lastGridRowRef.current : Math.floor(GRID_ROWS / 2);
       const targetCol =
@@ -1194,20 +1203,12 @@ export default function CategoryShowcasePage({
       const gridSnapX = scX - TILE_WIDTH / 2 - targetCol * STEP_X;
       const gridSnapY = scY - TILE_HEIGHT / 2 - targetRow * STEP_Y;
 
-      // PHASE 1: "matikan paralax nya dulu" in slider view
-      // NOTE: DO NOT overwrite currentPanRef here! Keep slider canvas undisturbed during parallax reset!
-      gsap.to('.parallax-wrapper', {
-        transform: 'scale(1.22) translate3d(0px, 0px, 0px)',
-        duration: 0.32,
-        ease: 'power2.out',
-        onComplete: () => {
-          currentPanRef.current = { x: gridSnapX, y: gridSnapY };
-          targetPanRef.current = { x: gridSnapX, y: gridSnapY };
-          transitionDirectionRef.current = 'slider-to-grid';
-          setViewMode('grid');
-          saveStateToStorage('grid', gridSnapX, gridSnapY);
-        },
-      });
+      // Directly transition without artificial pre-freeze
+      currentPanRef.current = { x: gridSnapX, y: gridSnapY };
+      targetPanRef.current = { x: gridSnapX, y: gridSnapY };
+      transitionDirectionRef.current = 'slider-to-grid';
+      setViewMode('grid');
+      saveStateToStorage('grid', gridSnapX, gridSnapY);
     }
   }, [viewMode, displayProjects, sliderBlockWidth, saveStateToStorage]);
 
@@ -1218,8 +1219,13 @@ export default function CategoryShowcasePage({
 
     const onPointerDown = (e: PointerEvent) => {
       if (e.button !== 0 || isTransitioningRef.current) return;
+      const target = e.target as HTMLElement | null;
+      if (target && target.closest('header, button, nav, a, [role="button"]')) {
+        return;
+      }
       isDraggingRef.current = true;
-      dragIntentActiveRef.current = false;
+      isWheelingRef.current = false;
+      dragIntentActiveRef.current = true;
       dragDistanceRef.current = 0;
       strokeAccumulatorRef.current = 0;
       dragStartTimeRef.current = performance.now();
@@ -1257,12 +1263,12 @@ export default function CategoryShowcasePage({
       const stepDx = e.clientX - lastPointerRef.current.x;
       const stepDy = e.clientY - lastPointerRef.current.y;
 
-      // Smoothed velocity vector using exponential moving average (curva velocity)
+      // Smoothed velocity vector using exponential moving average
       const rawVx = stepDx / dt;
       const rawVy = stepDy / dt;
       velocityRef.current = {
-        vx: velocityRef.current.vx * 0.75 + rawVx * 0.25,
-        vy: velocityRef.current.vy * 0.75 + rawVy * 0.25,
+        vx: velocityRef.current.vx * 0.7 + rawVx * 0.3,
+        vy: velocityRef.current.vy * 0.7 + rawVy * 0.3,
       };
 
       const distFromStart = Math.hypot(
@@ -1271,35 +1277,12 @@ export default function CategoryShowcasePage({
       );
       dragDistanceRef.current = distFromStart;
 
-      // Intent detection: require at least 6px of deliberate movement before engaging drag
-      if (!dragIntentActiveRef.current) {
-        if (distFromStart >= 6) {
-          dragIntentActiveRef.current = true;
-          // Synchronize lastPointer so the first movement step is 0 (zero jump!)
-          lastPointerRef.current = { x: e.clientX, y: e.clientY, time: now };
-        } else {
-          lastPointerRef.current = { x: e.clientX, y: e.clientY, time: now };
-          return;
-        }
-      }
-
-      // S-Curve Velocity Gain (grounded, natural, non-hypersensitive):
-      // - Direct organic 1:1 feel (base gain 0.88)
-      // - Gentle S-curve ramp with speed: max ~1.02 (never accelerates beyond control)
-      const pointerSpeed = Math.hypot(
-        velocityRef.current.vx,
-        velocityRef.current.vy
-      );
-      const speedFactor = Math.min(1, pointerSpeed / 1.5);
-      const sCurve = speedFactor * speedFactor * (3 - 2 * speedFactor);
-      const velocityGain = 0.88 + sCurve * 0.14;
-
-      // Continuous, seamless incremental delta scaled by velocity curve
       lastPointerRef.current = { x: e.clientX, y: e.clientY, time: now };
 
-      targetPanRef.current.x += stepDx * velocityGain;
+      // 1:1 Direct agile pointer tracking
+      targetPanRef.current.x += stepDx;
       if (viewMode === 'grid') {
-        targetPanRef.current.y += stepDy * velocityGain;
+        targetPanRef.current.y += stepDy;
       } else if (viewMode === 'slider') {
         sliderHasScrolledRef.current = true;
       }
@@ -1308,22 +1291,16 @@ export default function CategoryShowcasePage({
     const onPointerUp = () => {
       if (!isDraggingRef.current) return;
       isDraggingRef.current = false;
-      const hadIntent = dragIntentActiveRef.current;
       dragIntentActiveRef.current = false;
 
-      if (!hadIntent || dragDistanceRef.current < 6) {
-        // Micro movement / tap without intent: keep settled position
-        return;
-      }
-
-      // Smooth inertia fling with clamped velocity momentum (1 card step max):
-      const maxFling = viewMode === 'slider' ? SLIDER_STRIDE : STEP_X;
-      const flingX = Math.max(-maxFling, Math.min(maxFling, velocityRef.current.vx * 100));
-      const flingY = Math.max(-STEP_Y, Math.min(STEP_Y, velocityRef.current.vy * 100));
+      // Smooth inertia fling with momentum (up to 3 cards distance based on flick velocity)
+      const maxFling = viewMode === 'slider' ? SLIDER_STRIDE * 3 : STEP_X * 3;
+      const flingX = Math.max(-maxFling, Math.min(maxFling, velocityRef.current.vx * 150));
+      const flingY = Math.max(-STEP_Y * 3, Math.min(STEP_Y * 3, velocityRef.current.vy * 150));
       const projectedX = currentPanRef.current.x + flingX;
       const projectedY = currentPanRef.current.y + flingY;
 
-      // Snap smoothly to the nearest card in the direction of the latest motion!
+      // Always snap crisply and authoritatively to the nearest card
       const snap = getSnapCoordinates(projectedX, projectedY, viewMode);
       targetPanRef.current.x = snap.x;
       if (viewMode === 'grid') {
@@ -1338,18 +1315,26 @@ export default function CategoryShowcasePage({
     const onWheel = (e: WheelEvent) => {
       if (isTransitioningRef.current) return;
       e.preventDefault();
+
+      isWheelingRef.current = true;
+
+      // Snappy, agile wheel physics: 1:1 responsive glide
+      const isMouseWheel = Math.abs(e.deltaY) >= 40 || Math.abs(e.deltaX) >= 40;
+      const wheelMultiplier = isMouseWheel ? 1.25 : 1.0;
+
       if (viewMode === 'slider') {
         sliderHasScrolledRef.current = true;
         const delta = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
-        targetPanRef.current.x -= delta * 0.9;
+        targetPanRef.current.x -= delta * wheelMultiplier;
       } else {
-        targetPanRef.current.x -= e.deltaX * 0.85;
-        targetPanRef.current.y -= e.deltaY * 0.85;
+        targetPanRef.current.x -= e.deltaX * wheelMultiplier;
+        targetPanRef.current.y -= e.deltaY * wheelMultiplier;
       }
 
-      // Smooth snap to nearest card when wheel scrolling settles
+      // Smooth snap to nearest card when wheel scrolling settles (90ms debounce for prompt crisp docking)
       if (wheelSnapTimeoutRef.current) clearTimeout(wheelSnapTimeoutRef.current);
       wheelSnapTimeoutRef.current = setTimeout(() => {
+        isWheelingRef.current = false;
         const snap = getSnapCoordinates(
           targetPanRef.current.x,
           targetPanRef.current.y,
@@ -1360,7 +1345,7 @@ export default function CategoryShowcasePage({
           targetPanRef.current.y = snap.y;
         }
         saveStateToStorage(viewMode, snap.x, viewMode === 'grid' ? snap.y : 0);
-      }, 150);
+      }, 90);
     };
 
     container.addEventListener('pointerdown', onPointerDown, { passive: true });
@@ -1622,6 +1607,8 @@ export default function CategoryShowcasePage({
                             src={project.thumbnail}
                             alt={project.title}
                             draggable={false}
+                            loading="eager"
+                            decoding="sync"
                             className="monochrome-base w-full h-full object-cover pointer-events-none"
                           />
                           <div className="color-overlay absolute inset-0 w-full h-full pointer-events-none opacity-0 will-change-opacity">
@@ -1629,6 +1616,8 @@ export default function CategoryShowcasePage({
                               src={project.thumbnail}
                               alt=""
                               draggable={false}
+                              loading="eager"
+                              decoding="sync"
                               className="color-img w-full h-full object-cover pointer-events-none"
                             />
                           </div>
@@ -1656,47 +1645,74 @@ export default function CategoryShowcasePage({
           {SLIDER_OFFSETS.map((so) => (
             <div
               key={`slider_block_${so}`}
-              className="absolute flex items-center select-none"
+              className="absolute inset-y-0 h-full flex items-center select-none"
               style={{
                 left: `${so * sliderBlockWidth}px`,
                 width: `${sliderBlockWidth}px`,
               }}
             >
-              {displayProjects.map((project, idx) => (
-                <div
-                  id={`slider_card_${so}_${idx}`}
-                  key={`slider_card_${so}_${project.id}_${idx}`}
-                  data-flip-id={so === 0 ? `card-${project.id}` : undefined}
-                  onClick={(e) =>
-                    handleProjectClick(e, project, `slider_card_${so}_${idx}`)
-                  }
-                  className="gallery-card-item cinema-card-tile relative flex-shrink-0 overflow-hidden bg-black select-none"
-                  style={{
-                    width: `${SLIDER_CARD_WIDTH}px`,
-                    height: `${SLIDER_CARD_HEIGHT}px`,
-                  }}
-                >
+              {displayProjects.map((project, idx) => {
+                let initialPx = 0;
+                let initialOpacity = 0;
+                if (isReady && typeof window !== 'undefined') {
+                  const scX = window.innerWidth / 2;
+                  const curWx = wrapRange(currentPanRef.current.x, sliderBlockWidth);
+                  const localX = so * sliderBlockWidth + idx * SLIDER_STRIDE;
+                  const screenX = localX + curWx;
+                  const cardCenterX = screenX + SLIDER_CARD_WIDTH / 2;
+                  const dist = Math.abs(cardCenterX - scX);
+                  initialOpacity = dist < 70 ? 1 : 0;
+                  const normX = (cardCenterX - scX) / scX;
+                  initialPx = Math.max(-28, Math.min(28, -normX * 18));
+                }
+
+                return (
                   <div
-                    className="parallax-wrapper w-full h-full relative will-change-transform"
-                    style={{ transform: 'scale(1.22)' }}
+                    id={`slider_card_${so}_${idx}`}
+                    key={`slider_card_${so}_${project.id}_${idx}`}
+                    data-flip-id={so === 0 ? `card-${project.id}` : undefined}
+                    onClick={(e) =>
+                      handleProjectClick(e, project, `slider_card_${so}_${idx}`)
+                    }
+                    className="gallery-card-item cinema-card-tile relative flex-shrink-0 overflow-hidden bg-black select-none"
+                    style={{
+                      width: `${SLIDER_CARD_WIDTH}px`,
+                      height: `${SLIDER_CARD_HEIGHT}px`,
+                    }}
                   >
-                    <img
-                      src={project.thumbnail}
-                      alt={project.title}
-                      draggable={false}
-                      className="monochrome-base w-full h-full object-cover pointer-events-none"
-                    />
-                    <div className="color-overlay absolute inset-0 w-full h-full pointer-events-none opacity-0 will-change-opacity">
+                    <div
+                      suppressHydrationWarning
+                      className="parallax-wrapper w-full h-full relative will-change-transform"
+                      style={{
+                        transform: `scale(1.22) translate3d(${initialPx.toFixed(1)}px, 0px, 0px)`,
+                      }}
+                    >
                       <img
                         src={project.thumbnail}
-                        alt=""
+                        alt={project.title}
                         draggable={false}
-                        className="color-img w-full h-full object-cover pointer-events-none"
+                        loading="eager"
+                        decoding="sync"
+                        className="monochrome-base w-full h-full object-cover pointer-events-none"
                       />
+                      <div
+                        suppressHydrationWarning
+                        className="color-overlay absolute inset-0 w-full h-full pointer-events-none will-change-opacity"
+                        style={{ opacity: initialOpacity }}
+                      >
+                        <img
+                          src={project.thumbnail}
+                          alt=""
+                          draggable={false}
+                          loading="eager"
+                          decoding="sync"
+                          className="color-img w-full h-full object-cover pointer-events-none"
+                        />
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           ))}
         </div>
