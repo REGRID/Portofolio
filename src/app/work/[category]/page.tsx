@@ -410,6 +410,14 @@ export default function CategoryShowcasePage({
     setIsReady(true);
     if (typeof window === 'undefined') return;
 
+    // Preload all project thumbnails into browser cache to prevent network fetch latency
+    category.projects.forEach((p) => {
+      if (p.thumbnail) {
+        const img = new Image();
+        img.src = p.thumbnail;
+      }
+    });
+
     try {
       const urlParams = new URLSearchParams(window.location.search);
       const urlView = urlParams.get('view') as
@@ -1580,6 +1588,27 @@ export default function CategoryShowcasePage({
                     const projIdx = (col + row) % displayProjects.length;
                     const project = displayProjects[projIdx];
                     if (!project) return null;
+
+                    let initialGridOpacity = 0;
+                    let initialGridPx = 0;
+                    let initialGridPy = 0;
+                    if (isReady && typeof window !== 'undefined') {
+                      const scX = window.innerWidth / 2;
+                      const scY = window.innerHeight / 2;
+                      const curWx = wrapRange(currentPanRef.current.x, BLOCK_WIDTH);
+                      const curWy = wrapRange(currentPanRef.current.y, BLOCK_HEIGHT);
+                      const localX = bx * BLOCK_WIDTH + col * STEP_X;
+                      const localY = by * BLOCK_HEIGHT + row * STEP_Y;
+                      const cardCenterX = localX + curWx + TILE_WIDTH / 2;
+                      const cardCenterY = localY + curWy + TILE_HEIGHT / 2;
+                      const dist = Math.hypot(cardCenterX - scX, cardCenterY - scY);
+                      initialGridOpacity = dist < 70 ? 1 : 0;
+                      const normX = (cardCenterX - scX) / scX;
+                      const normY = (cardCenterY - scY) / scY;
+                      initialGridPx = Math.max(-28, Math.min(28, -normX * 18));
+                      initialGridPy = Math.max(-32, Math.min(32, -normY * 20));
+                    }
+
                     return (
                       <div
                         id={`grid_card_${bx}_${by}_${row}_${col}`}
@@ -1600,24 +1629,31 @@ export default function CategoryShowcasePage({
                         }}
                       >
                         <div
+                          suppressHydrationWarning
                           className="parallax-wrapper w-full h-full relative will-change-transform"
-                          style={{ transform: 'scale(1.22)' }}
+                          style={{
+                            transform: `scale(1.22) translate3d(${initialGridPx.toFixed(1)}px, ${initialGridPy.toFixed(1)}px, 0px)`,
+                          }}
                         >
                           <img
                             src={project.thumbnail}
                             alt={project.title}
                             draggable={false}
                             loading="eager"
-                            decoding="sync"
+                            decoding="async"
                             className="monochrome-base w-full h-full object-cover pointer-events-none"
                           />
-                          <div className="color-overlay absolute inset-0 w-full h-full pointer-events-none opacity-0 will-change-opacity">
+                          <div
+                            suppressHydrationWarning
+                            className="color-overlay absolute inset-0 w-full h-full pointer-events-none will-change-opacity"
+                            style={{ opacity: initialGridOpacity }}
+                          >
                             <img
                               src={project.thumbnail}
                               alt=""
                               draggable={false}
                               loading="eager"
-                              decoding="sync"
+                              decoding="async"
                               className="color-img w-full h-full object-cover pointer-events-none"
                             />
                           </div>
@@ -1692,7 +1728,7 @@ export default function CategoryShowcasePage({
                         alt={project.title}
                         draggable={false}
                         loading="eager"
-                        decoding="sync"
+                        decoding="async"
                         className="monochrome-base w-full h-full object-cover pointer-events-none"
                       />
                       <div
@@ -1705,7 +1741,7 @@ export default function CategoryShowcasePage({
                           alt=""
                           draggable={false}
                           loading="eager"
-                          decoding="sync"
+                          decoding="async"
                           className="color-img w-full h-full object-cover pointer-events-none"
                         />
                       </div>

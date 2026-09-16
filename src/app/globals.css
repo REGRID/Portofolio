@@ -122,7 +122,7 @@ body {
 
 /* High-performance hardware accelerated canvas tile (Seamless Tapestry) */
 .cinema-card-tile {
-  contain: layout style;
+  contain: layout style paint;
   border: none !important;
   transform: translateZ(0);
   backface-visibility: hidden;
@@ -135,6 +135,7 @@ body {
   height: 100%;
   will-change: transform;
   transform-origin: center center;
+  overflow: hidden;
 }
 
 /* Base Monochrome Image */
@@ -144,6 +145,8 @@ body {
   object-fit: cover;
   filter: grayscale(100%) brightness(0.62) contrast(1.1);
   backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  transform: translateZ(0);
   pointer-events: none;
   display: block;
 }
@@ -157,6 +160,7 @@ body {
   pointer-events: none;
   opacity: 0;
   will-change: opacity;
+  transform: translateZ(0);
 }
 
 .cinema-card-tile .color-overlay .color-img {
@@ -165,6 +169,8 @@ body {
   object-fit: cover;
   filter: grayscale(0%) brightness(1.06) contrast(1.03);
   backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  transform: translateZ(0);
   pointer-events: none;
   display: block;
 }
