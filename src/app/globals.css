@@ -122,6 +122,8 @@ body {
 
 /* High-performance hardware accelerated canvas tile (Seamless Tapestry) */
 .cinema-card-tile {
+  content-visibility: auto;
+  contain-intrinsic-size: 450px 620px;
   contain: layout style paint;
   border: none !important;
   transform: translateZ(0);

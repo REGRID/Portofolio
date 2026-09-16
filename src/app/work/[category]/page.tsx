@@ -170,18 +170,13 @@ export default function CategoryShowcasePage({
     videoEl?: HTMLVideoElement | null;
     videoLayerEl?: HTMLElement | null;
     videoBadgeEl?: HTMLElement | null;
-    youtubeId?: string;
-    ytLayerEl?: HTMLElement | null;
-    ytIframeEl?: HTMLIFrameElement | null;
-    ytBadgeEl?: HTMLElement | null;
   }
 
   const cachedTilesRef = useRef<CachedTile[]>([]);
 
-  // Active Center Card Video & Audio Fade Controller (Pure HTML5 Video + Iframe Fallback)
+  // Active Center Card Video & Audio Fade Controller (Pure Lightweight HTML5 Video)
   const activeVideoTileRef = useRef<{
     video: HTMLVideoElement | null;
-    iframe: HTMLIFrameElement | null;
     layer: HTMLElement | null;
     badge: HTMLElement | null;
     fadeTimer: NodeJS.Timeout | null;
@@ -189,7 +184,6 @@ export default function CategoryShowcasePage({
     isPlaying: boolean;
   }>({
     video: null,
-    iframe: null,
     layer: null,
     badge: null,
     fadeTimer: null,
@@ -197,26 +191,24 @@ export default function CategoryShowcasePage({
     isPlaying: false,
   });
 
+  const isLoopRunningRef = useRef(false);
+  const wakeLoopRef = useRef<() => void>(() => {});
+
   const startVideoWithAudioFadeIn = useCallback((
-    target: { video?: HTMLVideoElement | null; iframe?: HTMLIFrameElement | null },
+    target: { video?: HTMLVideoElement | null },
     layer: HTMLElement,
     badge: HTMLElement | null
   ) => {
     const state = activeVideoTileRef.current;
-    if (
-      (target.video && state.video === target.video && state.isPlaying) ||
-      (target.iframe && state.iframe === target.iframe && state.isPlaying)
-    ) {
+    if (target.video && state.video === target.video && state.isPlaying) {
       return;
     }
 
     // Stop previous video if different
     if (state.video && state.video !== target.video) {
       state.video.pause();
+      state.video.currentTime = 0;
       state.video.muted = true;
-    }
-    if (state.iframe && state.iframe !== target.iframe) {
-      postYt(state.iframe, 'pauseVideo');
     }
     if (state.layer && state.layer !== layer) {
       state.layer.style.opacity = '0';
@@ -228,7 +220,6 @@ export default function CategoryShowcasePage({
     if (state.fadeTimer) clearInterval(state.fadeTimer);
 
     state.video = target.video || null;
-    state.iframe = target.iframe || null;
     state.layer = layer;
     state.badge = badge;
     state.isPlaying = true;
@@ -260,21 +251,6 @@ export default function CategoryShowcasePage({
           if (!v.muted) v.volume = Math.min(1, vol);
         } catch {}
       }, 40);
-    } else if (target.iframe) {
-      const iframe = target.iframe;
-      postYt(iframe, 'playVideo');
-      postYt(iframe, 'unMute');
-      postYt(iframe, 'setVolume', [0]);
-      let vol = 0;
-      state.fadeTimer = setInterval(() => {
-        vol += 5;
-        if (vol >= 100) {
-          vol = 100;
-          if (state.fadeTimer) clearInterval(state.fadeTimer);
-        }
-        state.currentVolume = vol;
-        postYt(iframe, 'setVolume', [vol]);
-      }, 45);
     }
   }, []);
 
@@ -284,7 +260,6 @@ export default function CategoryShowcasePage({
 
     if (state.fadeTimer) clearInterval(state.fadeTimer);
     const video = state.video;
-    const iframe = state.iframe;
     const layer = state.layer;
     const badge = state.badge;
 
@@ -298,6 +273,7 @@ export default function CategoryShowcasePage({
           try {
             video.volume = 0;
             video.pause();
+            video.currentTime = 0;
           } catch {}
           if (layer) layer.style.opacity = '0';
           if (badge) badge.style.opacity = '0';
@@ -309,24 +285,6 @@ export default function CategoryShowcasePage({
           try {
             if (!video.muted) video.volume = Math.max(0, vol);
           } catch {}
-        }
-      }, 30);
-    } else if (iframe) {
-      let vol = state.currentVolume;
-      state.fadeTimer = setInterval(() => {
-        vol -= 14;
-        if (vol <= 0) {
-          vol = 0;
-          if (state.fadeTimer) clearInterval(state.fadeTimer);
-          postYt(iframe, 'pauseVideo');
-          if (layer) layer.style.opacity = '0';
-          if (badge) badge.style.opacity = '0';
-          state.isPlaying = false;
-          state.iframe = null;
-          state.layer = null;
-          state.badge = null;
-        } else {
-          postYt(iframe, 'setVolume', [vol]);
         }
       }, 30);
     } else {
@@ -405,14 +363,9 @@ export default function CategoryShowcasePage({
               const el = document.getElementById(id);
               const wrapper = el?.querySelector<HTMLElement>('.parallax-wrapper');
               const colorOverlay = el?.querySelector<HTMLElement>('.color-overlay');
-              const projIdx = (col + row) % displayProjects.length;
-              const project = displayProjects[projIdx];
               const videoLayer = el?.querySelector<HTMLElement>('.card-video-layer');
               const videoEl = el?.querySelector<HTMLVideoElement>('video[data-card-video]');
               const videoBadge = el?.querySelector<HTMLElement>('.card-audio-indicator');
-              const ytLayer = el?.querySelector<HTMLElement>('.yt-live-layer');
-              const ytIframe = el?.querySelector<HTMLIFrameElement>('iframe[data-yt-card]');
-              const ytBadge = el?.querySelector<HTMLElement>('.yt-audio-indicator');
               if (el && wrapper && colorOverlay) {
                 tiles.push({
                   cardEl: el,
@@ -427,10 +380,6 @@ export default function CategoryShowcasePage({
                   videoEl: videoEl,
                   videoLayerEl: videoLayer,
                   videoBadgeEl: videoBadge,
-                  youtubeId: project?.youtube_id,
-                  ytLayerEl: ytLayer,
-                  ytIframeEl: ytIframe,
-                  ytBadgeEl: ytBadge,
                 });
               }
             }
@@ -447,9 +396,6 @@ export default function CategoryShowcasePage({
           const videoLayer = el?.querySelector<HTMLElement>('.card-video-layer');
           const videoEl = el?.querySelector<HTMLVideoElement>('video[data-card-video]');
           const videoBadge = el?.querySelector<HTMLElement>('.card-audio-indicator');
-          const ytLayer = el?.querySelector<HTMLElement>('.yt-live-layer');
-          const ytIframe = el?.querySelector<HTMLIFrameElement>('iframe[data-yt-card]');
-          const ytBadge = el?.querySelector<HTMLElement>('.yt-audio-indicator');
           if (el && wrapper && colorOverlay) {
             tiles.push({
               cardEl: el,
@@ -464,10 +410,6 @@ export default function CategoryShowcasePage({
               videoEl: videoEl,
               videoLayerEl: videoLayer,
               videoBadgeEl: videoBadge,
-              youtubeId: project?.youtube_id,
-              ytLayerEl: ytLayer,
-              ytIframeEl: ytIframe,
-              ytBadgeEl: ytBadge,
             });
           }
         });
@@ -475,7 +417,7 @@ export default function CategoryShowcasePage({
     }
 
     cachedTilesRef.current = tiles;
-  }, [viewMode, displayProjects, sliderBlockWidth]);
+  }, [viewMode, displayProjects, sliderBlockWidth, BLOCK_WIDTH, BLOCK_HEIGHT, GRID_ROWS, GRID_COLS]);
 
   useEffect(() => {
     refreshCachedTiles();
@@ -607,14 +549,6 @@ export default function CategoryShowcasePage({
     setIsReady(true);
     if (typeof window === 'undefined') return;
 
-    // Preload all project thumbnails into browser cache to prevent network fetch latency
-    category.projects.forEach((p) => {
-      if (p.thumbnail) {
-        const img = new Image();
-        img.src = p.thumbnail;
-      }
-    });
-
     try {
       const urlParams = new URLSearchParams(window.location.search);
       const urlView = urlParams.get('view') as
@@ -654,13 +588,14 @@ export default function CategoryShowcasePage({
       );
       targetPanRef.current = snap;
       saveStateToStorage(viewModeRef.current, snap.x, snap.y);
+      wakeLoopRef.current();
     };
 
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, [categoryKey, saveStateToStorage]);
 
-  // High-performance 60-120 FPS hardware-accelerated RAF Lerp loop
+  // High-performance 60-120 FPS hardware-accelerated RAF Lerp loop with intelligent idle sleeping
   useEffect(() => {
     let rafId: number;
 
@@ -688,19 +623,22 @@ export default function CategoryShowcasePage({
         chaseEase = 0.24;
       }
 
-      currentPanRef.current.x +=
-        (targetPanRef.current.x - currentPanRef.current.x) * chaseEase;
-      currentPanRef.current.y +=
-        (targetPanRef.current.y - currentPanRef.current.y) * chaseEase;
+      const dx = targetPanRef.current.x - currentPanRef.current.x;
+      const dy = targetPanRef.current.y - currentPanRef.current.y;
+
+      currentPanRef.current.x += dx * chaseEase;
+      currentPanRef.current.y += dy * chaseEase;
+
+      const isSettled =
+        !isDraggingRef.current &&
+        !isWheelingRef.current &&
+        Math.abs(dx) < 0.08 &&
+        Math.abs(dy) < 0.08;
 
       // Lock subpixel precision when settled to eliminate micro-jitter
-      if (!isDraggingRef.current && !isWheelingRef.current) {
-        if (Math.abs(targetPanRef.current.x - currentPanRef.current.x) < 0.4) {
-          currentPanRef.current.x = targetPanRef.current.x;
-        }
-        if (Math.abs(targetPanRef.current.y - currentPanRef.current.y) < 0.4) {
-          currentPanRef.current.y = targetPanRef.current.y;
-        }
+      if (isSettled) {
+        currentPanRef.current.x = targetPanRef.current.x;
+        currentPanRef.current.y = targetPanRef.current.y;
       }
 
       if (canvasRef.current && typeof window !== 'undefined') {
@@ -830,20 +768,19 @@ export default function CategoryShowcasePage({
 
         // Live Video Auto-Play with Audio Fade-In (ONLY when card is at the colored point!)
         const centerTile = closestIdx !== -1 ? tiles[closestIdx] : null;
-        // In this design, a card reaches its colored point when minDist < 70
         const isAtColoredPoint = Boolean(centerTile && minDist < 70);
 
         if (
           !activeModalProjectRef.current &&
           isAtColoredPoint &&
           centerTile &&
-          (centerTile.videoEl || centerTile.ytIframeEl) &&
-          (centerTile.videoLayerEl || centerTile.ytLayerEl)
+          centerTile.videoEl &&
+          centerTile.videoLayerEl
         ) {
           startVideoWithAudioFadeIn(
-            { video: centerTile.videoEl, iframe: centerTile.ytIframeEl },
-            (centerTile.videoLayerEl || centerTile.ytLayerEl)!,
-            centerTile.videoBadgeEl || centerTile.ytBadgeEl || null
+            { video: centerTile.videoEl },
+            centerTile.videoLayerEl,
+            centerTile.videoBadgeEl || null
           );
         } else if (activeVideoTileRef.current.isPlaying) {
           if (activeModalProjectRef.current || !isAtColoredPoint || minDist >= 70) {
@@ -852,23 +789,44 @@ export default function CategoryShowcasePage({
         }
       }
 
+      // If settled and canvas is stationary, sleep the loop to save 100% CPU & GPU!
+      if (isSettled) {
+        isLoopRunningRef.current = false;
+        return;
+      }
+
       rafId = requestAnimationFrame(tick);
     };
 
+    const wakeLoop = () => {
+      if (!isLoopRunningRef.current) {
+        isLoopRunningRef.current = true;
+        rafId = requestAnimationFrame(tick);
+      }
+    };
+    wakeLoopRef.current = wakeLoop;
+
+    isLoopRunningRef.current = true;
     rafId = requestAnimationFrame(tick);
     return () => {
+      isLoopRunningRef.current = false;
       cancelAnimationFrame(rafId);
       stopVideoWithAudioFadeOut();
     };
-  }, [viewMode, sliderBlockWidth, displayProjects.length, refreshCachedTiles]);
+  }, [
+    viewMode,
+    sliderBlockWidth,
+    BLOCK_WIDTH,
+    BLOCK_HEIGHT,
+    refreshCachedTiles,
+    startVideoWithAudioFadeIn,
+    stopVideoWithAudioFadeOut,
+  ]);
 
   // User interaction listener to satisfy browser autoplay audio policy
   useEffect(() => {
     const unlockAudio = () => {
-      const state = activeVideoTileRef.current;
-      if (state.isPlaying && state.iframe) {
-        postYt(state.iframe, 'unMute');
-      }
+      wakeLoopRef.current();
     };
     window.addEventListener('pointerdown', unlockAudio, { passive: true });
     window.addEventListener('wheel', unlockAudio, { passive: true });
@@ -1500,6 +1458,7 @@ export default function CategoryShowcasePage({
         time: performance.now(),
       };
       velocityRef.current = { vx: 0, vy: 0 };
+      wakeLoopRef.current();
     };
 
     const onPointerMove = (e: PointerEvent) => {
@@ -1537,6 +1496,7 @@ export default function CategoryShowcasePage({
       } else if (viewMode === 'slider') {
         sliderHasScrolledRef.current = true;
       }
+      wakeLoopRef.current();
     };
 
     const onPointerUp = () => {
@@ -1558,6 +1518,7 @@ export default function CategoryShowcasePage({
         targetPanRef.current.y = snap.y;
       }
       saveStateToStorage(viewMode, snap.x, viewMode === 'grid' ? snap.y : 0);
+      wakeLoopRef.current();
     };
 
     const onPointerLeave = () => {};
@@ -1581,6 +1542,7 @@ export default function CategoryShowcasePage({
         targetPanRef.current.x -= e.deltaX * wheelMultiplier;
         targetPanRef.current.y -= e.deltaY * wheelMultiplier;
       }
+      wakeLoopRef.current();
 
       // Smooth snap to nearest card when wheel scrolling settles (90ms debounce for prompt crisp docking)
       if (wheelSnapTimeoutRef.current) clearTimeout(wheelSnapTimeoutRef.current);
@@ -1596,6 +1558,7 @@ export default function CategoryShowcasePage({
           targetPanRef.current.y = snap.y;
         }
         saveStateToStorage(viewMode, snap.x, viewMode === 'grid' ? snap.y : 0);
+        wakeLoopRef.current();
       }, 90);
     };
 
@@ -1856,7 +1819,7 @@ export default function CategoryShowcasePage({
                             src={project.thumbnail}
                             alt={project.title}
                             draggable={false}
-                            loading="eager"
+                            loading={bx === 0 && by === 0 && row < 3 && col < 4 ? 'eager' : 'lazy'}
                             decoding="async"
                             className="monochrome-base w-full h-full object-cover pointer-events-none"
                           />
@@ -1869,7 +1832,7 @@ export default function CategoryShowcasePage({
                               src={project.thumbnail}
                               alt=""
                               draggable={false}
-                              loading="eager"
+                              loading={bx === 0 && by === 0 && row < 3 && col < 4 ? 'eager' : 'lazy'}
                               decoding="async"
                               className="color-img w-full h-full object-cover pointer-events-none"
                             />
@@ -1882,33 +1845,10 @@ export default function CategoryShowcasePage({
                                 loop
                                 muted
                                 playsInline
-                                preload="auto"
+                                preload="none"
                                 className="w-full h-full object-cover pointer-events-none"
                               />
                               <div className="card-audio-indicator absolute bottom-4 right-4 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/80 backdrop-blur-md border border-cyan-400/50 text-[9px] font-mono text-cyan-300 opacity-0 transition-opacity duration-300 shadow-[0_0_15px_rgba(56,189,248,0.4)]">
-                                <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
-                                <span className="tracking-widest font-bold">AUDIO ON</span>
-                              </div>
-                            </div>
-                          ) : project.youtube_id ? (
-                            <div className="yt-live-layer absolute inset-0 w-full h-full overflow-hidden pointer-events-none opacity-0 transition-opacity duration-700 z-10 bg-black">
-                              <div className="absolute inset-0 flex items-center justify-center overflow-hidden pointer-events-none">
-                                <iframe
-                                  data-yt-card={project.youtube_id}
-                                  src={`https://www.youtube.com/embed/${project.youtube_id}?enablejsapi=1&autoplay=1&controls=0&mute=1&loop=1&playlist=${project.youtube_id}&playsinline=1&rel=0&showinfo=0&iv_load_policy=3&modestbranding=1&disablekb=1&fs=0`}
-                                  style={{
-                                    width: '340%',
-                                    height: '135%',
-                                    minWidth: '340%',
-                                    minHeight: '135%',
-                                    maxWidth: 'none',
-                                    maxHeight: 'none',
-                                  }}
-                                  className="shrink-0 pointer-events-none border-0"
-                                  allow="autoplay; encrypted-media; picture-in-picture"
-                                />
-                              </div>
-                              <div className="yt-audio-indicator absolute bottom-4 right-4 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/80 backdrop-blur-md border border-cyan-400/50 text-[9px] font-mono text-cyan-300 opacity-0 transition-opacity duration-500 shadow-[0_0_15px_rgba(56,189,248,0.4)]">
                                 <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
                                 <span className="tracking-widest font-bold">AUDIO ON</span>
                               </div>
@@ -1984,7 +1924,7 @@ export default function CategoryShowcasePage({
                         src={project.thumbnail}
                         alt={project.title}
                         draggable={false}
-                        loading="eager"
+                        loading={so === 0 && idx < 5 ? 'eager' : 'lazy'}
                         decoding="async"
                         className="monochrome-base w-full h-full object-cover pointer-events-none"
                       />
@@ -1997,7 +1937,7 @@ export default function CategoryShowcasePage({
                           src={project.thumbnail}
                           alt=""
                           draggable={false}
-                          loading="eager"
+                          loading={so === 0 && idx < 5 ? 'eager' : 'lazy'}
                           decoding="async"
                           className="color-img w-full h-full object-cover pointer-events-none"
                         />
@@ -2010,33 +1950,10 @@ export default function CategoryShowcasePage({
                             loop
                             muted
                             playsInline
-                            preload="auto"
+                            preload="none"
                             className="w-full h-full object-cover pointer-events-none"
                           />
                           <div className="card-audio-indicator absolute bottom-4 right-4 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/80 backdrop-blur-md border border-cyan-400/50 text-[9px] font-mono text-cyan-300 opacity-0 transition-opacity duration-300 shadow-[0_0_15px_rgba(56,189,248,0.4)]">
-                            <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
-                            <span className="tracking-widest font-bold">AUDIO ON</span>
-                          </div>
-                        </div>
-                      ) : project.youtube_id ? (
-                        <div className="yt-live-layer absolute inset-0 w-full h-full overflow-hidden pointer-events-none opacity-0 transition-opacity duration-700 z-10 bg-black">
-                          <div className="absolute inset-0 flex items-center justify-center overflow-hidden pointer-events-none">
-                            <iframe
-                              data-yt-card={project.youtube_id}
-                              src={`https://www.youtube.com/embed/${project.youtube_id}?enablejsapi=1&autoplay=1&controls=0&mute=1&loop=1&playlist=${project.youtube_id}&playsinline=1&rel=0&showinfo=0&iv_load_policy=3&modestbranding=1&disablekb=1&fs=0`}
-                              style={{
-                                width: '340%',
-                                height: '135%',
-                                minWidth: '340%',
-                                minHeight: '135%',
-                                maxWidth: 'none',
-                                maxHeight: 'none',
-                              }}
-                              className="shrink-0 pointer-events-none border-0"
-                              allow="autoplay; encrypted-media; picture-in-picture"
-                            />
-                          </div>
-                          <div className="yt-audio-indicator absolute bottom-4 right-4 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/80 backdrop-blur-md border border-cyan-400/50 text-[9px] font-mono text-cyan-300 opacity-0 transition-opacity duration-500 shadow-[0_0_15px_rgba(56,189,248,0.4)]">
                             <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
                             <span className="tracking-widest font-bold">AUDIO ON</span>
                           </div>
