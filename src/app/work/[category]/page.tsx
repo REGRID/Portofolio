@@ -19,7 +19,43 @@ import {
 } from 'lucide-react';
 import gsap from 'gsap';
 import { Flip } from 'gsap/Flip';
+import { AnimatePresence, motion } from 'motion/react';
 import { CATEGORY_DATA, CategoryProject } from '@/data/categoryData';
+
+// Map project aspect ratio to native responsive modal dimensions
+function getModalAspectClasses(aspectRatio?: string) {
+  switch (aspectRatio) {
+    case '9:16 Vertical':
+      // Mobile / Reels / TikTok vertical format (e.g. Tanoshii Spray)
+      return {
+        container: 'max-w-[390px] sm:max-w-[420px] w-full',
+        aspect: 'aspect-[9/16] max-h-[85vh]',
+      };
+    case '4:5 Social':
+      return {
+        container: 'max-w-[480px] w-full',
+        aspect: 'aspect-[4/5] max-h-[85vh]',
+      };
+    case '2.39:1 Anamorphic':
+    case '2.39:1 Scope':
+    case '2.39:1 Cinema Scope':
+      return {
+        container: 'max-w-6xl w-full',
+        aspect: 'aspect-[2.39/1] max-h-[85vh]',
+      };
+    case '21:9 Ultrawide':
+      return {
+        container: 'max-w-6xl w-full',
+        aspect: 'aspect-[21/9] max-h-[85vh]',
+      };
+    case '16:9 Cinema':
+    default:
+      return {
+        container: 'max-w-5xl w-full',
+        aspect: 'aspect-video max-h-[85vh]',
+      };
+  }
+}
 
 const useIsomorphicLayoutEffect =
   typeof window !== 'undefined' ? useLayoutEffect : useEffect;
@@ -132,7 +168,6 @@ export default function CategoryShowcasePage({
   const [activeModalProject, setActiveModalProject] = useState<CategoryProject | null>(null);
   const activeModalProjectRef = useRef<CategoryProject | null>(null);
   activeModalProjectRef.current = activeModalProject;
-  const [isModalClosing, setIsModalClosing] = useState(false);
 
   // Hovered item for List View Preview
   const [hoveredProjectId, setHoveredProjectId] = useState<string | null>(null);
@@ -840,13 +875,9 @@ export default function CategoryShowcasePage({
     };
   }, []);
 
-  // Close modal with transitions-dev asymmetric exit
+  // Close modal smoothly
   const closeModal = useCallback(() => {
-    setIsModalClosing(true);
-    setTimeout(() => {
-      setActiveModalProject(null);
-      setIsModalClosing(false);
-    }, 160);
+    setActiveModalProject(null);
   }, []);
 
   // Choreographed Grid <-> Slider transition with anchored focal photo, row dispersal & zoom
@@ -1590,12 +1621,59 @@ export default function CategoryShowcasePage({
       return;
     }
 
+    // In Grid and Slider modes:
+    // Only the center colored card can open the full-screen modal!
+    // If an outer (non-colored) card is clicked, smoothly shift the screen so it becomes the center focal card.
+    if (viewMode === 'grid' || viewMode === 'slider') {
+      const el = cardId ? document.getElementById(cardId) : (e.currentTarget as HTMLElement);
+      if (el && typeof window !== 'undefined') {
+        const rect = el.getBoundingClientRect();
+        const cardCenterX = rect.left + rect.width / 2;
+        const cardCenterY = rect.top + rect.height / 2;
+        const scX = window.innerWidth / 2;
+        const scY = window.innerHeight / 2;
+
+        const dist =
+          viewMode === 'slider'
+            ? Math.abs(cardCenterX - scX)
+            : Math.hypot(cardCenterX - scX, cardCenterY - scY);
+
+        if (dist >= 70) {
+          // Card is outside the center colored point: shift screen so this card becomes center
+          const moveX = scX - cardCenterX;
+          const moveY = scY - cardCenterY;
+
+          const rawTargetX = currentPanRef.current.x + moveX;
+          const rawTargetY = viewMode === 'grid' ? currentPanRef.current.y + moveY : 0;
+
+          const snap = getSnapCoordinates(rawTargetX, rawTargetY, viewMode);
+          targetPanRef.current.x = snap.x;
+          if (viewMode === 'grid') {
+            targetPanRef.current.y = snap.y;
+          }
+          saveStateToStorage(viewMode, snap.x, viewMode === 'grid' ? snap.y : 0);
+          wakeLoopRef.current();
+          return;
+        }
+      }
+    }
+
     // Stop background card audio fade if opening modal
     stopVideoWithAudioFadeOut();
 
     // Open full video modal popup
     setActiveModalProject(project);
   };
+
+  // Keyboard Escape listener to exit modal smoothly
+  useEffect(() => {
+    if (!activeModalProject) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') closeModal();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [activeModalProject, closeModal]);
 
   // Cinematic Zoom-Out Exit Transition returning to Work section
   const handleBackToWork = useCallback(
@@ -2078,75 +2156,79 @@ export default function CategoryShowcasePage({
         </div>
       </footer>
 
-      {/* 5. CINEMA VIDEO / CASE STUDY MODAL */}
-      {activeModalProject && (
-        <div
-          className={`fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 md:p-10 select-auto transition-opacity duration-200 ${isModalClosing ? 'opacity-0' : 'opacity-100'
-            }`}
-          style={{
-            backgroundColor: 'rgba(2, 5, 18, 0.95)',
-            backdropFilter: 'blur(16px)',
-          }}
-          onClick={(e) => {
-            if (e.target === e.currentTarget) closeModal();
-          }}
-        >
-          <div
-            className={`relative w-full max-w-5xl rounded-2xl overflow-hidden border border-cyan-500/40 bg-[#061026] shadow-[0_0_80px_rgba(56,189,248,0.35)] flex flex-col transition-transform duration-200 ${isModalClosing ? 'scale-95' : 'scale-100'
-              }`}
-          >
-            {/* Modal Top Bar */}
-            <div className="px-6 py-4 border-b border-zinc-800/80 flex items-center justify-between bg-[#040a1c]">
-              <div className="flex items-center gap-3">
-                <span className="w-2.5 h-2.5 rounded-full bg-cyan-400 animate-pulse" />
-                <span className="font-mono text-xs tracking-[0.25em] uppercase text-cyan-300 font-bold">
-                  {activeModalProject.client} • {activeModalProject.year}
-                </span>
-              </div>
-              <button
-                type="button"
-                onClick={closeModal}
-                className="p-1.5 rounded-full bg-zinc-900 border border-zinc-700 text-zinc-300 hover:text-white hover:border-cyan-400 transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
+      {/* 5. CINEMA VIDEO / CASE STUDY MODAL (Spring Morphing Pop-Up & Zero Player Controls) */}
+      <AnimatePresence>
+        {activeModalProject && (() => {
+          const aspect = getModalAspectClasses(activeModalProject.aspectRatio);
 
-            {/* Full Cinema Video Player (16:9 widescreen or 2.39:1 scope) */}
-            <div
-              className={`relative w-full ${
-                activeModalProject.aspectRatio === '16:9 Cinema' ? 'aspect-video' : 'aspect-[2.39/1]'
-              } bg-black overflow-hidden flex items-center justify-center`}
+          return (
+            <motion.div
+              key="cinema-video-modal-backdrop"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.28, ease: 'easeOut' }}
+              className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 md:p-8 bg-black/90 backdrop-blur-xl select-none"
+              onClick={(e) => {
+                if (e.target === e.currentTarget) closeModal();
+              }}
             >
-              {activeModalProject.preview_video || activeModalProject.video_url?.endsWith('.mp4') ? (
-                <video
-                  src={activeModalProject.preview_video || activeModalProject.video_url}
-                  controls
-                  autoPlay
-                  className="w-full h-full object-cover"
-                  poster={activeModalProject.thumbnail}
-                />
-              ) : activeModalProject.youtube_id ? (
-                <iframe
-                  src={`https://www.youtube.com/embed/${activeModalProject.youtube_id}?autoplay=1&controls=1&rel=0&playsinline=1`}
-                  title={activeModalProject.title}
-                  className="w-full h-full border-0"
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                  allowFullScreen
-                />
-              ) : (
-                <video
-                  src={activeModalProject.video_url}
-                  controls
-                  autoPlay
-                  className="w-full h-full object-cover"
-                  poster={activeModalProject.thumbnail}
-                />
-              )}
-            </div>
-          </div>
-        </div>
-      )}
+              <motion.div
+                key={`modal-card-${activeModalProject.id}`}
+                initial={{ scale: 0.82, opacity: 0, y: 24 }}
+                animate={{ scale: 1, opacity: 1, y: 0 }}
+                exit={{ scale: 0.88, opacity: 0, y: 16 }}
+                transition={{
+                  type: 'spring',
+                  bounce: 0.1,
+                  duration: 0.4,
+                }}
+                className={`relative ${aspect.container} overflow-hidden rounded-2xl border border-cyan-500/40 bg-black shadow-[0_0_100px_rgba(0,0,0,0.95),0_0_50px_rgba(56,189,248,0.25)] flex flex-col`}
+                onClick={(e) => e.stopPropagation()}
+              >
+                {/* Pure Cinema Video Player without any UI controls (Only Clean Full Video) */}
+                <div
+                  className={`relative w-full ${aspect.aspect} bg-black overflow-hidden flex items-center justify-center`}
+                >
+                  {activeModalProject.preview_video || activeModalProject.video_url?.endsWith('.mp4') ? (
+                    <video
+                      src={activeModalProject.preview_video || activeModalProject.video_url}
+                      autoPlay
+                      loop
+                      playsInline
+                      className="w-full h-full object-cover pointer-events-none"
+                      poster={activeModalProject.thumbnail}
+                    />
+                  ) : activeModalProject.youtube_id ? (
+                    <iframe
+                      src={`https://www.youtube.com/embed/${activeModalProject.youtube_id}?autoplay=1&controls=0&modestbranding=1&rel=0&playsinline=1`}
+                      title={activeModalProject.title}
+                      className="w-full h-full border-0 pointer-events-none"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    />
+                  ) : (
+                    <img
+                      src={activeModalProject.thumbnail}
+                      alt={activeModalProject.title}
+                      className="w-full h-full object-cover pointer-events-none"
+                    />
+                  )}
+                </div>
+
+                {/* Single Minimalist Floating Exit Button (X) - Only button present */}
+                <button
+                  type="button"
+                  onClick={closeModal}
+                  className="absolute top-4 right-4 z-30 p-2.5 rounded-full bg-black/60 hover:bg-black/90 backdrop-blur-md border border-white/20 hover:border-cyan-400 text-white/80 hover:text-white transition-all shadow-[0_0_20px_rgba(0,0,0,0.8)] cursor-pointer active:scale-95"
+                  aria-label="Close video"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </motion.div>
+            </motion.div>
+          );
+        })()}
+      </AnimatePresence>
 
       {/* 4. CINEMATIC ZOOM-OUT EXIT PORTAL OVERLAY (REVERSE CAMERA PULL-BACK) */}
       {isZoomingOut && (
