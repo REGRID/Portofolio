@@ -306,30 +306,18 @@ export default function CategoryShowcasePage({
       if (dataSrc && (!v.src || v.src === '' || v.src.endsWith(window.location.pathname))) {
         v.src = dataSrc;
       }
-      // Start muted to comply 100% with browser autoplay policy (Chrome/Edge/Safari/Firefox)
-      v.muted = true;
+      // Play with sound (unmuted) by default
+      v.muted = false;
+      v.volume = 1;
       const playPromise = v.play();
       if (playPromise !== undefined) {
         playPromise
           .then(() => {
-            // Attempt smooth audio fade-in if user has interacted with the document
-            let vol = 0;
-            state.fadeTimer = setInterval(() => {
-              vol += 0.08;
-              if (vol >= 1.0) {
-                vol = 1.0;
-                if (state.fadeTimer) clearInterval(state.fadeTimer);
-              }
-              state.currentVolume = vol * 100;
-              try {
-                v.muted = false;
-                if (!v.muted) v.volume = Math.min(1, vol);
-              } catch {
-                v.muted = true;
-              }
-            }, 40);
+            v.muted = false;
+            v.volume = 1;
           })
           .catch(() => {
+            // Fallback to muted only if user hasn't interacted with document yet
             v.muted = true;
             v.play().catch(() => {});
           });
@@ -1884,7 +1872,6 @@ export default function CategoryShowcasePage({
                                 data-src={project.preview_video || project.video_url}
                                 src={isCenterTile ? (project.preview_video || project.video_url) : undefined}
                                 loop
-                                muted
                                 playsInline
                                 preload={isCenterTile ? "metadata" : "none"}
                                 className="w-full h-full object-cover pointer-events-none"
@@ -1991,7 +1978,6 @@ export default function CategoryShowcasePage({
                             data-src={project.preview_video || project.video_url}
                             src={isCenterSlider ? (project.preview_video || project.video_url) : undefined}
                             loop
-                            muted
                             playsInline
                             preload={isCenterSlider ? "metadata" : "none"}
                             className="w-full h-full object-cover pointer-events-none"
@@ -2168,7 +2154,7 @@ export default function CategoryShowcasePage({
                 >
                   {activeModalProject.youtube_id || activeModalProject.video_url?.includes('youtube.com') || activeModalProject.video_url?.includes('youtu.be') ? (
                     <iframe
-                      src={`https://www.youtube.com/embed/${activeModalProject.youtube_id || (activeModalProject.video_url.includes('v=') ? activeModalProject.video_url.split('v=')[1]?.split('&')[0] : activeModalProject.video_url.split('/').pop())}?autoplay=1&mute=1&controls=1&enablejsapi=1&rel=0&playsinline=1`}
+                      src={`https://www.youtube.com/embed/${activeModalProject.youtube_id || (activeModalProject.video_url.includes('v=') ? activeModalProject.video_url.split('v=')[1]?.split('&')[0] : activeModalProject.video_url.split('/').pop())}?autoplay=1&controls=1&enablejsapi=1&rel=0&playsinline=1`}
                       title={activeModalProject.title}
                       className="w-full h-full border-0 pointer-events-auto"
                       allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
@@ -2178,7 +2164,6 @@ export default function CategoryShowcasePage({
                     <video
                       src={activeModalProject.preview_video || activeModalProject.video_url}
                       autoPlay
-                      muted
                       loop
                       playsInline
                       controls
