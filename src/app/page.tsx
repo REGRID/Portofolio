@@ -51,6 +51,20 @@ interface Project {
   featured: boolean;
 }
 
+interface GuidelinePage {
+  id: string;
+  slug: string;
+  label: string;
+  title: string;
+}
+
+const GUIDELINE_PAGES: GuidelinePage[] = [
+  { id: 'about', slug: 'about', label: '01', title: 'About' },
+  { id: 'portfolio', slug: 'work', label: '02', title: 'Work' },
+  { id: 'shop', slug: 'shop', label: '03', title: 'Shop' },
+  { id: 'contact', slug: 'contact', label: '04', title: 'Contact' },
+];
+
 export default function PortfolioPage() {
   const router = useRouter();
   const [projects, setProjects] = useState<Project[]>([]);
@@ -296,12 +310,7 @@ export default function PortfolioPage() {
   const [heroTitle, setHeroTitle] = useState("SIMON SPARKS");
 
   // 4 Guideline Points (Circle 1: About, Circle 2: Work, Circle 3: Shop, Circle 4: Contact)
-  const guidelinePages = [
-    { id: 'about', label: '01', title: 'About' },
-    { id: 'portfolio', label: '02', title: 'Work' },
-    { id: 'shop', label: '03', title: 'Shop' },
-    { id: 'contact', label: '04', title: 'Contact' },
-  ];
+  const guidelinePages = GUIDELINE_PAGES;
   const [activePageIndex, setActivePageIndex] = useState(0);
   const [activeCardIndex, setActiveCardIndex] = useState<number | null>(null);
 
@@ -331,6 +340,13 @@ export default function PortfolioPage() {
     // Update active page index state immediately for UI indicators (Header & Dots)
     activePageIndexRef.current = targetIndex;
     setActivePageIndex(targetIndex);
+
+    // Dynamically synchronize browser URL to match active section
+    if (typeof window !== 'undefined') {
+      const slug = guidelinePages[targetIndex].slug;
+      const targetQuery = slug === 'about' ? '/' : `/?section=${slug}`;
+      window.history.replaceState({ section: slug }, '', targetQuery);
+    }
 
     if (currentEl && targetEl) {
       const outY = direction === 'next' ? -80 : 80;
@@ -549,58 +565,71 @@ export default function PortfolioPage() {
     }
   }, [activePageIndex, handlePageClick]);
 
-  // Activate Section 02 Work & smooth zoom-out landing animation when returning from /work/[category]
+  // Activate target section from URL query (?section=... or ?s=...) or hash (#...)
   useEffect(() => {
     if (typeof window === 'undefined') return;
+
     const checkTargetSection = () => {
       // Force reset any lingering scroll offset to guarantee viewport-fixed element alignment
       window.scrollTo(0, 0);
       if (document.documentElement) document.documentElement.scrollTop = 0;
       if (document.body) document.body.scrollTop = 0;
 
-      const hash = window.location.hash;
+      const hash = window.location.hash.toLowerCase();
       const urlParams = new URLSearchParams(window.location.search);
-      const section = urlParams.get('section');
+      const sectionParam = (urlParams.get('section') || urlParams.get('s') || '').toLowerCase();
 
-      if (hash === '#portfolio' || section === 'work') {
-        activePageIndexRef.current = 1;
-        setActivePageIndex(1);
-        const aboutEl = document.getElementById('about');
-        const portfolioEl = document.getElementById('portfolio');
-
-        if (aboutEl) {
-          gsap.set(aboutEl, { visibility: 'hidden', opacity: 0, pointerEvents: 'none' });
-        }
-        if (portfolioEl) {
-          gsap.set(portfolioEl, {
-            visibility: 'visible',
-            opacity: 1,
-            y: 0,
-            pointerEvents: 'auto',
-          });
-
-          // Cinematic zoom-out landing for the 4 Bento cards (camera pulls back into position)
-          gsap.fromTo(
-            '.bento-anim-card',
-            { scale: 1.18, opacity: 0, filter: 'blur(6px)' },
-            {
-              scale: 1,
-              opacity: 1,
-              filter: 'blur(0px)',
-              duration: 0.85,
-              stagger: 0.05,
-              ease: 'power2.out',
-              clearProps: 'filter,transform',
-            }
-          );
-        }
+      let targetIdx = 0;
+      if (sectionParam === 'work' || hash === '#portfolio' || hash === '#work') {
+        targetIdx = 1;
+      } else if (sectionParam === 'shop' || sectionParam === 'skills' || hash === '#shop' || hash === '#skills') {
+        targetIdx = 2;
+      } else if (sectionParam === 'contact' || sectionParam === 'contacts' || hash === '#contact' || hash === '#contacts') {
+        targetIdx = 3;
+      } else if (sectionParam === 'about' || hash === '#about') {
+        targetIdx = 0;
+      } else {
+        return; // default to current index
       }
+
+      activePageIndexRef.current = targetIdx;
+      setActivePageIndex(targetIdx);
+
+      guidelinePages.forEach((page, idx) => {
+        const el = document.getElementById(page.id);
+        if (!el) return;
+        if (idx === targetIdx) {
+          gsap.set(el, { visibility: 'visible', opacity: 1, y: 0, pointerEvents: 'auto' });
+          if (idx === 1) {
+            // Cinematic zoom-out landing for the 4 Bento cards
+            gsap.fromTo(
+              '.bento-anim-card',
+              { scale: 1.18, opacity: 0, filter: 'blur(6px)' },
+              {
+                scale: 1,
+                opacity: 1,
+                filter: 'blur(0px)',
+                duration: 0.85,
+                stagger: 0.05,
+                ease: 'power2.out',
+                clearProps: 'filter,transform',
+              }
+            );
+          }
+        } else {
+          gsap.set(el, { visibility: 'hidden', opacity: 0, pointerEvents: 'none' });
+        }
+      });
     };
 
     checkTargetSection();
     window.addEventListener('hashchange', checkTargetSection);
-    return () => window.removeEventListener('hashchange', checkTargetSection);
-  }, []);
+    window.addEventListener('popstate', checkTargetSection);
+    return () => {
+      window.removeEventListener('hashchange', checkTargetSection);
+      window.removeEventListener('popstate', checkTargetSection);
+    };
+  }, [guidelinePages]);
 
   return (
     <div className="relative w-full h-screen overflow-hidden simon-sparks-bg text-[#f1f5f9] font-sans selection:bg-cyan-500/30 selection:text-cyan-200">
