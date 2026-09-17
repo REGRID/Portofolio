@@ -526,40 +526,20 @@ export default function CategoryShowcasePage({
     const scX = window.innerWidth / 2;
     const scY = window.innerHeight / 2;
 
-    let targetX = scX - TILE_WIDTH / 2 - 2 * STEP_X;
-    let targetY = scY - TILE_HEIGHT / 2 - 2 * STEP_Y;
+    // Strictly center Card #1 (col=0, row=0, bx=0, by=0) in the viewport by default
+    let targetX = scX - TILE_WIDTH / 2;
+    let targetY = scY - TILE_HEIGHT / 2;
 
     try {
-      const savedStr =
-        sessionStorage.getItem(`portfolio_state_${categoryKey}`) ||
-        localStorage.getItem(`portfolio_state_${categoryKey}`);
-
-      let mode = viewModeRef.current;
-      let savedPanX: number | null = null;
-      let savedPanY: number | null = null;
-      let savedFocalIdx: number | null = null;
-
-      if (savedStr) {
-        const saved = JSON.parse(savedStr);
-        if (saved.viewMode) mode = saved.viewMode;
-        if (typeof saved.panX === 'number') savedPanX = saved.panX;
-        if (typeof saved.panY === 'number') savedPanY = saved.panY;
-        if (typeof saved.focalIdx === 'number') savedFocalIdx = saved.focalIdx;
-      }
+      const urlParams = new URLSearchParams(window.location.search);
+      const urlView = urlParams.get('view');
+      const mode = urlView || viewModeRef.current;
 
       if (mode === 'slider') {
-        const focalIdx = typeof savedFocalIdx === 'number' ? savedFocalIdx : 0;
+        const focalIdx = 0;
         const rawTargetX = scX - SLIDER_CARD_WIDTH / 2 - focalIdx * SLIDER_STRIDE;
         targetX = wrapRange(rawTargetX, sliderBlockWidth);
         targetY = 0;
-      } else if (
-        mode === 'grid' &&
-        typeof savedPanX === 'number' &&
-        typeof savedPanY === 'number'
-      ) {
-        const snap = getSnapCoordinates(savedPanX, savedPanY, 'grid');
-        targetX = snap.x;
-        targetY = snap.y;
       }
     } catch {}
 
@@ -1736,9 +1716,7 @@ export default function CategoryShowcasePage({
   return (
     <div
       ref={containerRef}
-      className={`relative w-screen h-screen overflow-hidden select-none bg-[#030712] text-zinc-100 font-sans cursor-grab active:cursor-grabbing transition-opacity duration-300 ease-out ${
-        isReady ? 'opacity-100' : 'opacity-0'
-      }`}
+      className="relative w-screen h-screen overflow-hidden select-none bg-[#030712] text-zinc-100 font-sans cursor-grab active:cursor-grabbing opacity-100"
       style={{
         touchAction: 'none',
       }}
@@ -1847,10 +1825,11 @@ export default function CategoryShowcasePage({
                     const project = displayProjects[projIdx];
                     if (!project) return null;
 
-                    let initialGridOpacity = 0;
+                    const isCenterTile = bx === 0 && by === 0 && row === 0 && col === 0;
+                    let initialGridOpacity = isCenterTile ? 1 : 0;
                     let initialGridPx = 0;
                     let initialGridPy = 0;
-                    if (isReady && typeof window !== 'undefined') {
+                    if (typeof window !== 'undefined') {
                       const scX = window.innerWidth / 2;
                       const scY = window.innerHeight / 2;
                       const curWx = wrapRange(currentPanRef.current.x, BLOCK_WIDTH);
@@ -2140,6 +2119,16 @@ export default function CategoryShowcasePage({
           )}
         </div>
       )}
+
+      {/* Deep Cinematic Fish-Eye Vignette & Atmosphere */}
+      <div
+        className="fixed inset-0 pointer-events-none z-20 select-none"
+        style={{
+          background:
+            'radial-gradient(ellipse 86% 80% at 50% 50%, transparent 40%, rgba(2,6,18,0.32) 65%, rgba(2,6,18,0.86) 88%, #020512 100%)',
+          boxShadow: 'inset 0 0 130px 50px rgba(2,6,18,0.94)',
+        }}
+      />
 
       {/* 4. BOTTOM FIXED TECHNICAL HUD BAR */}
       <footer className="fixed bottom-0 left-0 right-0 z-40 px-6 py-4 flex flex-col pointer-events-none">

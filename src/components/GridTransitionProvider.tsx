@@ -1,0 +1,301 @@
+'use client';
+
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useRef,
+  useEffect,
+  useCallback,
+} from 'react';
+import { useRouter, usePathname } from 'next/navigation';
+import gsap from 'gsap';
+import { CategoryProject } from '@/data/categoryData';
+
+export interface GridTransitionData {
+  slug: string;
+  title: string;
+  projects: CategoryProject[];
+  rect: {
+    left: number;
+    top: number;
+    width: number;
+    height: number;
+  };
+}
+
+interface GridTransitionContextType {
+  startGridTransition: (data: GridTransitionData) => void;
+  isTransitionActive: boolean;
+}
+
+const GridTransitionContext = createContext<GridTransitionContextType>({
+  startGridTransition: () => {},
+  isTransitionActive: false,
+});
+
+export function useGridTransition() {
+  return useContext(GridTransitionContext);
+}
+
+export function GridTransitionProvider({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const router = useRouter();
+  const pathname = usePathname();
+
+  const [activeTransition, setActiveTransition] = useState<GridTransitionData | null>(null);
+  const portalWrapperRef = useRef<HTMLDivElement>(null);
+  const portalOverlayRef = useRef<HTMLDivElement>(null);
+  const isReadyToMixRef = useRef(false);
+  const hasMixedRef = useRef(false);
+  const activeSlugRef = useRef<string | null>(null);
+
+  const startGridTransition = useCallback(
+    (data: GridTransitionData) => {
+      // Clear any stored drag positions for fresh Card #1 alignment
+      if (typeof window !== 'undefined') {
+        try {
+          sessionStorage.removeItem(`portfolio_state_${data.slug}`);
+          localStorage.removeItem(`portfolio_state_${data.slug}`);
+        } catch {}
+      }
+
+      // Prefetch destination route immediately
+      router.prefetch(`/work/${data.slug}`);
+
+      isReadyToMixRef.current = false;
+      hasMixedRef.current = false;
+      activeSlugRef.current = data.slug;
+      setActiveTransition(data);
+    },
+    [router]
+  );
+
+  // GSAP 1:1 Timeline (Glide -> Hold -> Expand to 100vw x 100dvh)
+  useEffect(() => {
+    if (!activeTransition) return;
+    const wrapper = portalWrapperRef.current;
+    const overlay = portalOverlayRef.current;
+    if (!wrapper || !overlay) return;
+
+    gsap.set(overlay, { opacity: 1 });
+    gsap.set(wrapper, {
+      left: activeTransition.rect.left + activeTransition.rect.width / 2,
+      top: activeTransition.rect.top + activeTransition.rect.height / 2,
+      width: activeTransition.rect.width,
+      height: activeTransition.rect.height,
+      borderRadius: 16,
+      xPercent: -50,
+      yPercent: -50,
+      position: 'fixed',
+    });
+
+    const tl = gsap.timeline({
+      onComplete: () => {
+        isReadyToMixRef.current = true;
+        // Navigate to the category page while overlay remains 100% opaque on top
+        router.push(`/work/${activeTransition.slug}`);
+
+        // Safety fallback: if pathname change doesn't trigger within 2.5s, force mix
+        setTimeout(() => {
+          if (!hasMixedRef.current && portalOverlayRef.current) {
+            hasMixedRef.current = true;
+            gsap.to(portalOverlayRef.current, {
+              opacity: 0,
+              duration: 0.45,
+              ease: 'power2.inOut',
+              onComplete: () => {
+                setActiveTransition(null);
+                isReadyToMixRef.current = false;
+                activeSlugRef.current = null;
+              },
+            });
+          }
+        }, 2500);
+      },
+    });
+
+    // 1. Smoothly glide to center
+    tl.to(wrapper, {
+      left: '50%',
+      top: '50%',
+      width: 345,
+      height: 475,
+      borderRadius: 24,
+      duration: 0.42,
+      ease: 'power3.out',
+    })
+    // 2. Fase A: Idle hold in center (0.53s)
+    .to({}, { duration: 0.53 })
+    // 3. Fase B: Expand width (1.15s, expo.inOut)
+    .to(wrapper, {
+      width: '100vw',
+      borderRadius: 0,
+      duration: 1.15,
+      ease: 'expo.inOut',
+    }, '>')
+    // 4. Fase B: Expand height (1.35s, expo.inOut, starts 0.1s after width)
+    .to(wrapper, {
+      height: '100dvh',
+      borderRadius: 0,
+      duration: 1.35,
+      ease: 'expo.inOut',
+    }, '<0.1')
+    // Smoothly dissolve portal accents (red outline and cyan bottom line)
+    .to('.portal-accent-line, .portal-center-border', {
+      opacity: 0,
+      duration: 0.35,
+      ease: 'power2.out',
+    }, '-=0.35');
+
+    return () => {
+      tl.kill();
+    };
+  }, [activeTransition, router]);
+
+  // EFFECT MIX: Trigger cross-dissolve ONLY once destination route (/work/[category]) is active
+  useEffect(() => {
+    if (!activeTransition || !isReadyToMixRef.current || hasMixedRef.current) return;
+
+    const targetPath = `/work/${activeTransition.slug}`;
+    if (pathname === targetPath || (activeSlugRef.current && pathname.includes(activeSlugRef.current))) {
+      hasMixedRef.current = true;
+
+      // Small 60ms paint buffer so destination canvas finishes layout before dissolve
+      const timer = setTimeout(() => {
+        if (portalOverlayRef.current) {
+          gsap.to(portalOverlayRef.current, {
+            opacity: 0,
+            duration: 0.45,
+            ease: 'power2.inOut',
+            onComplete: () => {
+              setActiveTransition(null);
+              isReadyToMixRef.current = false;
+              activeSlugRef.current = null;
+            },
+          });
+        } else {
+          setActiveTransition(null);
+          isReadyToMixRef.current = false;
+          activeSlugRef.current = null;
+        }
+      }, 60);
+
+      return () => clearTimeout(timer);
+    }
+  }, [pathname, activeTransition]);
+
+  return (
+    <GridTransitionContext.Provider
+      value={{
+        startGridTransition,
+        isTransitionActive: !!activeTransition,
+      }}
+    >
+      {children}
+
+      {/* PERSISTENT FULL-VIEWPORT GRID PORTAL (Keeps overlay alive across route unmount) */}
+      {activeTransition && (
+        <div
+          ref={portalOverlayRef}
+          className="fixed inset-0 z-[9999] pointer-events-none overflow-hidden flex items-center justify-center select-none bg-black/95 will-change-opacity"
+        >
+          {/* Ambient Blue Radial Glow behind the centered card */}
+          <div className="absolute w-[520px] h-[520px] rounded-full bg-cyan-500/15 blur-3xl pointer-events-none" />
+
+          {/* Animated Mask / Wrapper Container driven by GSAP */}
+          <div
+            ref={portalWrapperRef}
+            className="overflow-hidden will-change-transform flex items-center justify-center relative"
+            style={{
+              boxShadow: '0 0 70px rgba(0,0,0,0.95), 0 0 40px rgba(56,189,248,0.4)',
+              border: '1.5px solid rgba(56,189,248,0.7)',
+            }}
+          >
+            {/* Real Mosaic Grid replicating exact TILE_WIDTH=345, TILE_HEIGHT=475 layout */}
+            <div className="absolute inset-0 pointer-events-none select-none">
+              {[-3, -2, -1, 0, 1, 2, 3].map((dx) =>
+                [-2, -1, 0, 1, 2].map((dy) => {
+                  const isCenter = dx === 0 && dy === 0;
+                  const dist = Math.hypot(dx, dy);
+                  const N = activeTransition.projects.length || 1;
+                  const projIdx = (((dx + dy) % N) + N) % N;
+                  const project = activeTransition.projects[projIdx] || activeTransition.projects[0];
+                  const thumbnail = project?.thumbnail || '/reference_assets/card_studio74_art.jpg';
+
+                  // Fish-eye barrel scale compression towards outer periphery
+                  const tileScale = isCenter ? 1.22 : Math.max(1.15, 1.22 - dist * 0.018);
+                  // Progressive optical blur: 0px at center, up to 2.8px at extreme edges
+                  const tileBlur = isCenter ? 0 : Math.min(dist * 0.85, 2.8).toFixed(1);
+
+                  return (
+                    <div
+                      key={`portal_tile_${dx}_${dy}`}
+                      className="absolute overflow-hidden bg-black select-none pointer-events-none"
+                      style={{
+                        left: `calc(50% - 172.5px + ${dx * 345}px)`,
+                        top: `calc(50% - 237.5px + ${dy * 475}px)`,
+                        width: '345px',
+                        height: '475px',
+                      }}
+                    >
+                      <div
+                        className="w-full h-full relative will-change-transform"
+                        style={{ transform: `scale(${tileScale})` }}
+                      >
+                        <img
+                          src={thumbnail}
+                          alt=""
+                          className={`w-full h-full object-cover pointer-events-none ${
+                            isCenter ? 'opacity-100' : 'opacity-70'
+                          }`}
+                          style={{
+                            filter: isCenter
+                              ? 'none'
+                              : `grayscale(100%) brightness(0.65) contrast(1.15) blur(${tileBlur}px)`,
+                          }}
+                        />
+                        {isCenter && (
+                          <div className="portal-center-border absolute inset-0 border-2 border-red-500/80 pointer-events-none" />
+                        )}
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            {/* Optical Fish-Eye Periphery Lens Blur (Center pin-sharp; outer sides softly blur) */}
+            <div
+              className="absolute inset-0 pointer-events-none z-15 select-none"
+              style={{
+                backdropFilter: 'blur(3.5px)',
+                WebkitBackdropFilter: 'blur(3.5px)',
+                maskImage:
+                  'radial-gradient(ellipse 65% 60% at 50% 50%, transparent 45%, black 88%)',
+                WebkitMaskImage:
+                  'radial-gradient(ellipse 65% 60% at 50% 50%, transparent 45%, black 88%)',
+              }}
+            />
+
+            {/* Deep Cinematic Fish-Eye Vignette with Cyan Corner Atmosphere */}
+            <div
+              className="absolute inset-0 pointer-events-none z-20 select-none"
+              style={{
+                background:
+                  'radial-gradient(ellipse 86% 80% at 50% 50%, transparent 40%, rgba(2,6,18,0.32) 65%, rgba(2,6,18,0.86) 88%, #020512 100%)',
+                boxShadow: 'inset 0 0 130px 50px rgba(2,6,18,0.94)',
+              }}
+            />
+
+            {/* Glowing cyan line at the bottom during hold */}
+            <div className="portal-accent-line absolute bottom-0 left-0 right-0 h-[2.5px] bg-cyan-400 shadow-[0_0_12px_rgba(56,189,248,1)] pointer-events-none z-25" />
+          </div>
+        </div>
+      )}
+    </GridTransitionContext.Provider>
+  );
+}
