@@ -10,28 +10,31 @@ import React, {
 } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import gsap from 'gsap';
-import { CategoryProject } from '@/data/categoryData';
+import { CATEGORY_DATA, CategoryProject } from '@/data/categoryData';
 import { EASE, DURATION } from '@/lib/motion-tokens';
 
 export interface GridTransitionData {
   slug: string;
   title: string;
   projects: CategoryProject[];
-  rect: {
+  rect?: {
     left: number;
     top: number;
     width: number;
     height: number;
   };
+  direction?: 'forward' | 'reverse';
 }
 
 interface GridTransitionContextType {
   startGridTransition: (data: GridTransitionData) => void;
+  startReverseTransition: (slug: string) => void;
   isTransitionActive: boolean;
 }
 
 const GridTransitionContext = createContext<GridTransitionContextType>({
   startGridTransition: () => {},
+  startReverseTransition: () => {},
   isTransitionActive: false,
 });
 
@@ -58,15 +61,19 @@ export function GridTransitionProvider({
   const prevPathnameRef = useRef(pathname);
 
   useEffect(() => {
-    // Clean up if returning from a /work/ route back to homepage
-    if (prevPathnameRef.current.startsWith('/work/') && pathname === '/') {
+    // Clean up if returning from a /work/ route back to homepage WITHOUT reverse transition
+    if (
+      prevPathnameRef.current.startsWith('/work/') &&
+      pathname === '/' &&
+      (!activeTransition || activeTransition.direction !== 'reverse')
+    ) {
       setActiveTransition(null);
       isReadyToMixRef.current = false;
       hasMixedRef.current = false;
       activeSlugRef.current = null;
     }
     prevPathnameRef.current = pathname;
-  }, [pathname]);
+  }, [pathname, activeTransition]);
 
   // If user hits browser Back / Forward buttons during transition, safely dismiss
   useEffect(() => {
@@ -103,17 +110,138 @@ export function GridTransitionProvider({
       isReadyToMixRef.current = false;
       hasMixedRef.current = false;
       activeSlugRef.current = data.slug;
-      setActiveTransition(data);
+      setActiveTransition({ ...data, direction: 'forward' });
     },
     [router]
   );
 
-  // GSAP 1:1 Timeline (Glide -> Hold -> Expand to 100vw x 100dvh)
+  const startReverseTransition = useCallback(
+    (slug: string) => {
+      if (typeof window !== 'undefined') {
+        const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        if (reduced) {
+          router.push('/?section=work', { scroll: false });
+          return;
+        }
+      }
+
+      const categoryData = CATEGORY_DATA[slug];
+      const categoryProjects = categoryData?.projects || [];
+
+      // Prefetch homepage immediately
+      router.prefetch('/?section=work');
+
+      isReadyToMixRef.current = false;
+      hasMixedRef.current = false;
+      activeSlugRef.current = slug;
+
+      setActiveTransition({
+        slug,
+        title: categoryData?.title || slug,
+        projects: categoryProjects,
+        direction: 'reverse',
+      });
+    },
+    [router]
+  );
+
+  // GSAP 1:1 Timeline (Forward & Reverse)
   useEffect(() => {
     if (!activeTransition) return;
     const wrapper = portalWrapperRef.current;
     const overlay = portalOverlayRef.current;
     if (!wrapper || !overlay) return;
+
+    if (activeTransition.direction === 'reverse') {
+      // ── REVERSE TRANSITION ("Keluar Mundur ke Jendela") ──
+      gsap.set(overlay, { opacity: 1 });
+      gsap.set(wrapper, {
+        left: '50%',
+        top: '50%',
+        width: '100vw',
+        height: '100dvh',
+        borderRadius: 0,
+        xPercent: -50,
+        yPercent: -50,
+        position: 'fixed',
+      });
+      // Accents start hidden while full-screen, reappear as frame contracts
+      gsap.set('.portal-accent-line, .portal-center-border', { opacity: 0 });
+
+      // Navigate to homepage section=work immediately under the overlay
+      router.push('/?section=work', { scroll: false });
+
+      const tl = gsap.timeline({
+        onComplete: () => {
+          setActiveTransition(null);
+          isReadyToMixRef.current = false;
+          hasMixedRef.current = false;
+          activeSlugRef.current = null;
+        },
+      });
+
+      // 1. Fase Kontraksi: Layar penuh menyusut mundur ke dalam jendela kartu tengah (345x475)
+      tl.to(wrapper, {
+        height: 475,
+        duration: 0.82,
+        ease: EASE.expoInOut.gsap,
+      })
+      .to(wrapper, {
+        width: 345,
+        borderRadius: 24,
+        duration: 0.78,
+        ease: EASE.expoInOut.gsap,
+      }, '<0.08')
+      // Fade back in the cyan accents and border as it shrinks into card shape
+      .to('.portal-accent-line, .portal-center-border', {
+        opacity: 1,
+        duration: DURATION.medium,
+        ease: EASE.smoothOut.gsap,
+      }, '-=0.35')
+      // 2. Fase Meluncur ke Slot Kartu di Homepage
+      .call(() => {
+        const targetCardEl = document.getElementById(`work-card-${activeTransition.slug}`);
+        let targetLeft = window.innerWidth / 2;
+        let targetTop = window.innerHeight / 2;
+        let targetWidth = 345;
+        let targetHeight = 475;
+        let targetRadius = 16;
+
+        if (targetCardEl) {
+          const r = targetCardEl.getBoundingClientRect();
+          if (r.width > 0 && r.height > 0) {
+            targetLeft = r.left + r.width / 2;
+            targetTop = r.top + r.height / 2;
+            targetWidth = r.width;
+            targetHeight = r.height;
+          }
+        }
+
+        gsap.to(wrapper, {
+          left: targetLeft,
+          top: targetTop,
+          width: targetWidth,
+          height: targetHeight,
+          borderRadius: targetRadius,
+          duration: 0.46,
+          ease: EASE.smoothOut.gsap,
+        });
+      })
+      .to({}, { duration: 0.46 })
+      // 3. Settle & Dissolve: fade out overlay smoothly into homepage card
+      .to(overlay, {
+        opacity: 0,
+        duration: 0.38,
+        ease: EASE.inOut.gsap,
+      });
+
+      return () => {
+        tl.kill();
+      };
+    }
+
+    // ── FORWARD TRANSITION (Glide -> Hold -> Expand to 100vw x 100dvh) ──
+    if (!activeTransition.rect) return;
 
     gsap.set(overlay, { opacity: 1 });
     gsap.set(wrapper, {
@@ -192,7 +320,8 @@ export function GridTransitionProvider({
 
   // EFFECT MIX: Trigger cross-dissolve ONLY once destination route (/work/[category]) is active
   useEffect(() => {
-    if (!activeTransition || !isReadyToMixRef.current || hasMixedRef.current) return;
+    if (!activeTransition || activeTransition.direction === 'reverse') return;
+    if (!isReadyToMixRef.current || hasMixedRef.current) return;
 
     const targetPath = `/work/${activeTransition.slug}`;
     if (pathname === targetPath || (activeSlugRef.current && pathname.includes(activeSlugRef.current))) {
@@ -226,6 +355,7 @@ export function GridTransitionProvider({
     <GridTransitionContext.Provider
       value={{
         startGridTransition,
+        startReverseTransition,
         isTransitionActive: !!activeTransition,
       }}
     >

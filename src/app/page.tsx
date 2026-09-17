@@ -1029,6 +1029,8 @@ export default function PortfolioPage() {
                   return (
                     <div
                       key={card.id}
+                      id={`work-card-${card.slug}`}
+                      data-card-slug={card.slug}
                       onMouseEnter={() => setActiveCardIndex(card.id)}
                       onPointerMove={handleTiltMove}
                       onPointerLeave={handleTiltLeave}

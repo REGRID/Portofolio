@@ -21,6 +21,7 @@ import gsap from 'gsap';
 import { Flip } from 'gsap/Flip';
 import { AnimatePresence, motion } from 'motion/react';
 import { CATEGORY_DATA, CategoryProject } from '@/data/categoryData';
+import { useGridTransition } from '@/components/GridTransitionProvider';
 
 // Map project aspect ratio to native responsive modal dimensions
 function getModalAspectClasses(aspectRatio?: string) {
@@ -156,10 +157,10 @@ export default function CategoryShowcasePage({
   })();
 
   const router = useRouter();
+  const { startReverseTransition } = useGridTransition();
   // View mode: 'grid' (2D canvas), 'slider' (horizontal filmstrip), 'list' (editorial directory)
   const [viewMode, setViewMode] = useState<'grid' | 'slider' | 'list'>(initialMode);
   const [isReady, setIsReady] = useState(false);
-  const [isZoomingOut, setIsZoomingOut] = useState(false);
 
   // Filter mode: 'all' | 'stills' | 'motion'
   const [activeFilter, setActiveFilter] = useState<'all' | 'stills' | 'motion'>('all');
@@ -1655,62 +1656,14 @@ export default function CategoryShowcasePage({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [activeModalProject, closeModal]);
 
-  // Cinematic Zoom-Out Exit Transition returning to Work section
+  // Unified Reverse Transition ("Keluar Mundur ke Jendela") returning to Work section
   const handleBackToWork = useCallback(
     (e?: React.MouseEvent) => {
       if (e) e.preventDefault();
-      if (isZoomingOut) return;
-
-      setIsZoomingOut(true);
-      isTransitioningRef.current = true;
-      velocityRef.current = { vx: 0, vy: 0 };
-
-      // Master Zoom-Out GSAP Timeline (camera pulls backward away from canvas)
-      const tl = gsap.timeline({
-        onComplete: () => {
-          router.push('/?section=work', { scroll: false });
-        },
-      });
-
-      // 1. Zoom out the entire canvas with cinematic S-curve
-      if (canvasRef.current) {
-        tl.to(
-          canvasRef.current,
-          {
-            scale: 0.1,
-            opacity: 0,
-            filter: 'blur(8px)',
-            duration: 0.88,
-            ease: 'power3.inOut',
-            transformOrigin: '50% 50%',
-          },
-          0
-        );
-      }
-
-      // 2. Optical parallax pull-back on all cards
-      tl.to(
-        '.parallax-wrapper',
-        {
-          scale: 0.85,
-          duration: 0.7,
-          ease: 'power2.in',
-        },
-        0
-      );
-
-      // 3. Clean HUD & Vignette exit
-      tl.to(
-        'header, .cinematic-vignette-blur-overlay',
-        {
-          opacity: 0,
-          duration: 0.4,
-          ease: 'power2.out',
-        },
-        0
-      );
+      stopVideoWithAudioFadeOut();
+      startReverseTransition(category.slug);
     },
-    [isZoomingOut, router]
+    [category.slug, startReverseTransition, stopVideoWithAudioFadeOut]
   );
 
   return (
@@ -2219,32 +2172,6 @@ export default function CategoryShowcasePage({
         })()}
       </AnimatePresence>
 
-      {/* 4. CINEMATIC ZOOM-OUT EXIT PORTAL OVERLAY (REVERSE CAMERA PULL-BACK) */}
-      {isZoomingOut && (
-        <div
-          className="fixed inset-0 z-50 pointer-events-none flex flex-col items-center justify-center select-none overflow-hidden"
-          style={{
-            backgroundColor: 'rgba(3, 8, 26, 0.92)',
-            animation: 'zoomOutBgFade 0.88s var(--ease-in-out) forwards',
-          }}
-        >
-          {/* Contracting Reverse Aperture Ring */}
-          <div
-            className="rounded-full border-2 border-cyan-400 pointer-events-none"
-            style={{
-              width: '180px',
-              height: '180px',
-              boxShadow: '0 0 100px rgba(56,189,248,0.9), inset 0 0 70px rgba(56,189,248,0.6)',
-              animation: 'zoomOutRingContract 0.88s var(--ease-in-out) forwards',
-            }}
-          />
-
-          {/* Heading badge */}
-          <div className="absolute z-20 font-mono text-xs tracking-[0.45em] uppercase text-cyan-300 font-bold drop-shadow-[0_0_12px_rgba(56,189,248,0.9)] animate-pulse">
-            RETURNING TO WORK...
-          </div>
-        </div>
-      )}
     </div>
   );
 }
