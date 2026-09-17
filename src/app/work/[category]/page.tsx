@@ -275,9 +275,11 @@ export default function CategoryShowcasePage({
 
     // Stop previous video if different
     if (state.video && state.video !== target.video) {
-      state.video.pause();
-      state.video.currentTime = 0;
-      state.video.muted = true;
+      try {
+        state.video.pause();
+        state.video.currentTime = 0;
+        state.video.muted = true;
+      } catch {}
     }
     if (state.layer && state.layer !== layer) {
       state.layer.style.opacity = '0';
@@ -344,35 +346,20 @@ export default function CategoryShowcasePage({
     const layer = state.layer;
     const badge = state.badge;
 
+    if (layer) layer.style.opacity = '0';
+    if (badge) badge.style.opacity = '0';
+
     if (video) {
-      let vol = video.muted ? 0 : video.volume;
-      state.fadeTimer = setInterval(() => {
-        vol -= 0.15;
-        if (vol <= 0) {
-          vol = 0;
-          if (state.fadeTimer) clearInterval(state.fadeTimer);
-          try {
-            video.volume = 0;
-            video.pause();
-            video.currentTime = 0;
-          } catch {}
-          if (layer) layer.style.opacity = '0';
-          if (badge) badge.style.opacity = '0';
-          state.isPlaying = false;
-          state.video = null;
-          state.layer = null;
-          state.badge = null;
-        } else {
-          try {
-            if (!video.muted) video.volume = Math.max(0, vol);
-          } catch {}
-        }
-      }, 30);
-    } else {
-      if (layer) layer.style.opacity = '0';
-      if (badge) badge.style.opacity = '0';
-      state.isPlaying = false;
+      try {
+        video.pause();
+        video.currentTime = 0;
+        video.muted = true;
+      } catch {}
     }
+    state.isPlaying = false;
+    state.video = null;
+    state.layer = null;
+    state.badge = null;
   }, []);
 
   // Filtered project list
@@ -800,26 +787,22 @@ export default function CategoryShowcasePage({
           }
         }
 
-        const tAllowance = Math.max(0, Math.min(1, (minDist - 55) / 150));
-        const otherCardAllowance = tAllowance * tAllowance * (3 - 2 * tAllowance);
-
-        // Second pass: apply proximity color only on visible cards, only when opacity changes
+        // Second pass: apply proximity color ONLY on the single closest card to center
         for (let i = 0; i < tileCount; i++) {
           const tile = tiles[i];
           if (!tile.visible || tile.dist === undefined) continue;
 
-          const dist = tile.dist;
-          let baseFactor = 0;
-          if (dist <= r0) {
-            baseFactor = 1.0;
-          } else if (dist < r1) {
-            const t = (dist - r0) / rDiff;
-            baseFactor = 0.5 * (1 + Math.cos(t * Math.PI));
-          } else {
-            baseFactor = 0;
+          let finalFactor = 0;
+          if (i === closestIdx) {
+            const dist = tile.dist;
+            if (dist <= r0) {
+              finalFactor = 1.0;
+            } else if (dist < r1) {
+              const t = (dist - r0) / rDiff;
+              finalFactor = 0.5 * (1 + Math.cos(t * Math.PI));
+            }
           }
 
-          const finalFactor = i === closestIdx ? baseFactor : baseFactor * otherCardAllowance;
           if (
             tile.lastOpacity === undefined ||
             Math.abs(finalFactor - tile.lastOpacity) > 0.005
