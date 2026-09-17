@@ -273,20 +273,21 @@ export default function CategoryShowcasePage({
       return;
     }
 
-    // Stop previous video if different
-    if (state.video && state.video !== target.video) {
-      try {
-        state.video.pause();
-        state.video.currentTime = 0;
-        state.video.muted = true;
-      } catch {}
-    }
-    if (state.layer && state.layer !== layer) {
-      state.layer.style.opacity = '0';
-    }
-    if (state.badge && state.badge !== badge) {
-      state.badge.style.opacity = '0';
-    }
+    // Stop previous video if different and pause all other cached videos
+    cachedTilesRef.current.forEach((t) => {
+      if (t.videoEl && t.videoEl !== target.video) {
+        try {
+          if (!t.videoEl.paused) t.videoEl.pause();
+          t.videoEl.currentTime = 0;
+        } catch {}
+      }
+      if (t.videoLayerEl && t.videoLayerEl !== layer) {
+        t.videoLayerEl.style.opacity = '0';
+      }
+      if (t.videoBadgeEl && t.videoBadgeEl !== badge) {
+        t.videoBadgeEl.style.opacity = '0';
+      }
+    });
 
     if (state.fadeTimer) clearInterval(state.fadeTimer);
 
@@ -317,7 +318,7 @@ export default function CategoryShowcasePage({
             v.volume = 1;
           })
           .catch(() => {
-            // Fallback to muted only if user hasn't interacted with document yet
+            // Fallback to muted only if browser blocks unmuted audio before user interaction
             v.muted = true;
             v.play().catch(() => {});
           });
@@ -327,23 +328,33 @@ export default function CategoryShowcasePage({
 
   const stopVideoWithAudioFadeOut = useCallback(() => {
     const state = activeVideoTileRef.current;
-    if (!state.isPlaying) return;
-
     if (state.fadeTimer) clearInterval(state.fadeTimer);
-    const video = state.video;
-    const layer = state.layer;
-    const badge = state.badge;
 
-    if (layer) layer.style.opacity = '0';
-    if (badge) badge.style.opacity = '0';
+    if (state.layer) state.layer.style.opacity = '0';
+    if (state.badge) state.badge.style.opacity = '0';
 
-    if (video) {
+    if (state.video) {
       try {
-        video.pause();
-        video.currentTime = 0;
-        video.muted = true;
+        state.video.pause();
+        state.video.currentTime = 0;
       } catch {}
     }
+
+    // Unconditionally ensure ALL videos across the board are stopped
+    cachedTilesRef.current.forEach((t) => {
+      if (t.videoEl) {
+        try {
+          if (!t.videoEl.paused) t.videoEl.pause();
+        } catch {}
+      }
+      if (t.videoLayerEl) {
+        t.videoLayerEl.style.opacity = '0';
+      }
+      if (t.videoBadgeEl) {
+        t.videoBadgeEl.style.opacity = '0';
+      }
+    });
+
     state.isPlaying = false;
     state.video = null;
     state.layer = null;
@@ -735,9 +746,9 @@ export default function CategoryShowcasePage({
             const normX = (cardCenterX - scX) / scX;
             const normY = (cardCenterY - scY) / scY;
 
-            // Optical parallax displacement: subtle and restrained for cinematic stability
-            const px = Math.max(-28, Math.min(28, -normX * 18 + lagX));
-            const py = isSlider ? 0 : Math.max(-32, Math.min(32, -normY * 20 + lagY));
+            // Optical parallax displacement: fully contained within scale(1.32) bounds (Zero black borders)
+            const px = Math.max(-20, Math.min(20, -normX * 14 + lagX));
+            const py = isSlider ? 0 : Math.max(-20, Math.min(20, -normY * 16 + lagY));
 
             // Only update transform if changed noticeably (avoids layout/style recalc)
             if (
@@ -745,7 +756,7 @@ export default function CategoryShowcasePage({
               Math.abs(px - tile.lastPx) > 0.08 ||
               Math.abs(py - (tile.lastPy || 0)) > 0.08
             ) {
-              tile.wrapperEl.style.transform = `scale(1.22) translate3d(${px.toFixed(1)}px, ${py.toFixed(1)}px, 0)`;
+              tile.wrapperEl.style.transform = `scale(1.32) translate3d(${px.toFixed(1)}px, ${py.toFixed(1)}px, 0)`;
               tile.lastPx = px;
               tile.lastPy = py;
             }
@@ -800,7 +811,7 @@ export default function CategoryShowcasePage({
           }
         }
 
-        // Live Video Auto-Play with Audio Fade-In (ONLY when card is at the colored point!)
+        // Live Video Auto-Play with Audio Fade-In (ONLY when card is in the exact center!)
         const centerTile = closestIdx !== -1 ? tiles[closestIdx] : null;
         const isAtColoredPoint = Boolean(centerTile && minDist < 70);
 
@@ -816,8 +827,9 @@ export default function CategoryShowcasePage({
             centerTile.videoLayerEl,
             centerTile.videoBadgeEl || null
           );
-        } else if (activeVideoTileRef.current.isPlaying) {
-          if (activeModalProjectRef.current || !isAtColoredPoint || minDist >= 70) {
+        } else {
+          // Immediately stop playback and hide video layer if card is not centered
+          if (activeVideoTileRef.current.isPlaying) {
             stopVideoWithAudioFadeOut();
           }
         }
@@ -1840,7 +1852,7 @@ export default function CategoryShowcasePage({
                           suppressHydrationWarning
                           className="parallax-wrapper w-full h-full relative will-change-transform"
                           style={{
-                            transform: `scale(1.22) translate3d(${initialGridPx.toFixed(1)}px, ${initialGridPy.toFixed(1)}px, 0px)`,
+                            transform: `scale(1.32) translate3d(${initialGridPx.toFixed(1)}px, ${initialGridPy.toFixed(1)}px, 0px)`,
                           }}
                         >
                           <img
@@ -1849,7 +1861,7 @@ export default function CategoryShowcasePage({
                             draggable={false}
                             loading={bx === 0 && by === 0 && row < 3 && col < 4 ? 'eager' : 'lazy'}
                             decoding="async"
-                            className="monochrome-base w-full h-full object-cover pointer-events-none"
+                            className="monochrome-base w-full h-full min-w-full min-h-full object-cover pointer-events-none"
                           />
                           <div
                             suppressHydrationWarning
@@ -1862,11 +1874,11 @@ export default function CategoryShowcasePage({
                               draggable={false}
                               loading={bx === 0 && by === 0 && row < 3 && col < 4 ? 'eager' : 'lazy'}
                               decoding="async"
-                              className="color-img w-full h-full object-cover pointer-events-none"
+                              className="color-img w-full h-full min-w-full min-h-full object-cover pointer-events-none"
                             />
                           </div>
                           {project.preview_video || (project.video_url?.endsWith('.mp4') ? project.video_url : null) ? (
-                            <div className="card-video-layer absolute inset-0 w-full h-full overflow-hidden pointer-events-none opacity-0 transition-opacity duration-500 z-10 bg-black">
+                            <div className="card-video-layer absolute inset-0 w-full h-full overflow-hidden pointer-events-none opacity-0 transition-opacity duration-200 z-10 bg-transparent">
                               <video
                                 data-card-video={project.id}
                                 data-src={project.preview_video || project.video_url}
@@ -1874,7 +1886,8 @@ export default function CategoryShowcasePage({
                                 loop
                                 playsInline
                                 preload={isCenterTile ? "metadata" : "none"}
-                                className="w-full h-full object-cover pointer-events-none"
+                                className="w-full h-full min-w-full min-h-full object-cover pointer-events-none"
+                                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                               />
                               <div className="card-audio-indicator absolute bottom-4 right-4 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/80 backdrop-blur-md border border-cyan-400/50 text-[9px] font-mono text-cyan-300 opacity-0 transition-opacity duration-300 shadow-[0_0_15px_rgba(56,189,248,0.4)]">
                                 <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
@@ -1946,7 +1959,7 @@ export default function CategoryShowcasePage({
                       suppressHydrationWarning
                       className="parallax-wrapper w-full h-full relative will-change-transform"
                       style={{
-                        transform: `scale(1.22) translate3d(${initialPx.toFixed(1)}px, 0px, 0px)`,
+                        transform: `scale(1.32) translate3d(${initialPx.toFixed(1)}px, 0px, 0px)`,
                       }}
                     >
                       <img
@@ -1955,7 +1968,7 @@ export default function CategoryShowcasePage({
                         draggable={false}
                         loading={so === 0 && idx < 5 ? 'eager' : 'lazy'}
                         decoding="async"
-                        className="monochrome-base w-full h-full object-cover pointer-events-none"
+                        className="monochrome-base w-full h-full min-w-full min-h-full object-cover pointer-events-none"
                       />
                       <div
                         suppressHydrationWarning
@@ -1968,11 +1981,11 @@ export default function CategoryShowcasePage({
                           draggable={false}
                           loading={so === 0 && idx < 5 ? 'eager' : 'lazy'}
                           decoding="async"
-                          className="color-img w-full h-full object-cover pointer-events-none"
+                          className="color-img w-full h-full min-w-full min-h-full object-cover pointer-events-none"
                         />
                       </div>
                       {project.preview_video || (project.video_url?.endsWith('.mp4') ? project.video_url : null) ? (
-                        <div className="card-video-layer absolute inset-0 w-full h-full overflow-hidden pointer-events-none opacity-0 transition-opacity duration-500 z-10 bg-black">
+                        <div className="card-video-layer absolute inset-0 w-full h-full overflow-hidden pointer-events-none opacity-0 transition-opacity duration-200 z-10 bg-transparent">
                           <video
                             data-card-video={project.id}
                             data-src={project.preview_video || project.video_url}
@@ -1980,7 +1993,8 @@ export default function CategoryShowcasePage({
                             loop
                             playsInline
                             preload={isCenterSlider ? "metadata" : "none"}
-                            className="w-full h-full object-cover pointer-events-none"
+                            className="w-full h-full min-w-full min-h-full object-cover pointer-events-none"
+                            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                           />
                           <div className="card-audio-indicator absolute bottom-4 right-4 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/80 backdrop-blur-md border border-cyan-400/50 text-[9px] font-mono text-cyan-300 opacity-0 transition-opacity duration-300 shadow-[0_0_15px_rgba(56,189,248,0.4)]">
                             <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
