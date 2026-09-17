@@ -2166,21 +2166,23 @@ export default function CategoryShowcasePage({
                 <div
                   className={`relative w-full ${aspect.aspect} bg-black overflow-hidden flex items-center justify-center`}
                 >
-                  {activeModalProject.preview_video || activeModalProject.video_url?.endsWith('.mp4') ? (
+                  {activeModalProject.youtube_id || activeModalProject.video_url?.includes('youtube.com') || activeModalProject.video_url?.includes('youtu.be') ? (
+                    <iframe
+                      src={`https://www.youtube.com/embed/${activeModalProject.youtube_id || (activeModalProject.video_url.includes('v=') ? activeModalProject.video_url.split('v=')[1]?.split('&')[0] : activeModalProject.video_url.split('/').pop())}?autoplay=1&controls=1&modestbranding=1&rel=0&playsinline=1`}
+                      title={activeModalProject.title}
+                      className="w-full h-full border-0 pointer-events-auto"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                      allowFullScreen
+                    />
+                  ) : activeModalProject.preview_video || activeModalProject.video_url?.endsWith('.mp4') ? (
                     <video
                       src={activeModalProject.preview_video || activeModalProject.video_url}
                       autoPlay
                       loop
                       playsInline
-                      className="w-full h-full object-cover pointer-events-none"
+                      controls
+                      className="w-full h-full object-cover"
                       poster={activeModalProject.thumbnail}
-                    />
-                  ) : activeModalProject.youtube_id ? (
-                    <iframe
-                      src={`https://www.youtube.com/embed/${activeModalProject.youtube_id}?autoplay=1&controls=0&modestbranding=1&rel=0&playsinline=1`}
-                      title={activeModalProject.title}
-                      className="w-full h-full border-0 pointer-events-none"
-                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                     />
                   ) : (
                     <img
