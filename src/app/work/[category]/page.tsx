@@ -869,17 +869,24 @@ export default function CategoryShowcasePage({
     stopVideoWithAudioFadeOut,
   ]);
 
-  // User interaction listener to satisfy browser autoplay audio policy
+  // User interaction listener to satisfy browser autoplay audio policy and unmute sound
   useEffect(() => {
     const unlockAudio = () => {
+      const activeVideo = activeVideoTileRef.current.video;
+      if (activeVideo && activeVideo.muted) {
+        activeVideo.muted = false;
+        activeVideo.volume = 1;
+      }
       wakeLoopRef.current();
     };
     window.addEventListener('pointerdown', unlockAudio, { passive: true });
+    window.addEventListener('pointermove', unlockAudio, { passive: true });
     window.addEventListener('wheel', unlockAudio, { passive: true });
     window.addEventListener('keydown', unlockAudio, { passive: true });
     window.addEventListener('touchstart', unlockAudio, { passive: true });
     return () => {
       window.removeEventListener('pointerdown', unlockAudio);
+      window.removeEventListener('pointermove', unlockAudio);
       window.removeEventListener('wheel', unlockAudio);
       window.removeEventListener('keydown', unlockAudio);
       window.removeEventListener('touchstart', unlockAudio);
