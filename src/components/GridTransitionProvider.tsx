@@ -42,6 +42,15 @@ export function useGridTransition() {
   return useContext(GridTransitionContext);
 }
 
+function getResponsiveCardSize() {
+  if (typeof window === 'undefined') return { width: 345, height: 475 };
+  const vw = window.innerWidth;
+  if (vw < 480) return { width: 260, height: 358 };
+  if (vw < 768) return { width: 300, height: 413 };
+  if (vw < 1024) return { width: 320, height: 440 };
+  return { width: 345, height: 475 };
+}
+
 export function GridTransitionProvider({
   children,
 }: {
@@ -51,6 +60,14 @@ export function GridTransitionProvider({
   const pathname = usePathname();
 
   const [activeTransition, setActiveTransition] = useState<GridTransitionData | null>(null);
+  const [cardSize, setCardSize] = useState(() => getResponsiveCardSize());
+
+  useEffect(() => {
+    const handleResize = () => setCardSize(getResponsiveCardSize());
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   const portalWrapperRef = useRef<HTMLDivElement>(null);
   const portalOverlayRef = useRef<HTMLDivElement>(null);
   const isReadyToMixRef = useRef(false);
@@ -180,14 +197,14 @@ export function GridTransitionProvider({
         },
       });
 
-      // 1. Fase Kontraksi: Layar penuh menyusut mundur ke dalam jendela kartu tengah (345x475)
+      // 1. Fase Kontraksi: Layar penuh menyusut mundur ke dalam jendela kartu tengah (responsive cardSize)
       tl.to(wrapper, {
-        height: 475,
+        height: cardSize.height,
         duration: 0.82,
         ease: EASE.expoInOut.gsap,
       })
       .to(wrapper, {
-        width: 345,
+        width: cardSize.width,
         borderRadius: 24,
         duration: 0.78,
         ease: EASE.expoInOut.gsap,
@@ -203,8 +220,8 @@ export function GridTransitionProvider({
         const targetCardEl = document.getElementById(`work-card-${activeTransition.slug}`);
         let targetLeft = window.innerWidth / 2;
         let targetTop = window.innerHeight / 2;
-        let targetWidth = 345;
-        let targetHeight = 475;
+        let targetWidth = cardSize.width;
+        let targetHeight = cardSize.height;
         let targetRadius = 16;
 
         if (targetCardEl) {
@@ -284,8 +301,8 @@ export function GridTransitionProvider({
     tl.to(wrapper, {
       left: '50%',
       top: '50%',
-      width: 345,
-      height: 475,
+      width: cardSize.width,
+      height: cardSize.height,
       borderRadius: 24,
       duration: 0.42,
       ease: EASE.smoothOut.gsap,
@@ -400,10 +417,10 @@ export function GridTransitionProvider({
                       key={`portal_tile_${dx}_${dy}`}
                       className="absolute overflow-hidden bg-black select-none pointer-events-none"
                       style={{
-                        left: `calc(50% - 172.5px + ${dx * 345}px)`,
-                        top: `calc(50% - 237.5px + ${dy * 475}px)`,
-                        width: '345px',
-                        height: '475px',
+                        left: `calc(50% - ${cardSize.width / 2}px + ${dx * cardSize.width}px)`,
+                        top: `calc(50% - ${cardSize.height / 2}px + ${dy * cardSize.height}px)`,
+                        width: `${cardSize.width}px`,
+                        height: `${cardSize.height}px`,
                       }}
                     >
                       <div

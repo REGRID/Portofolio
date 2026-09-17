@@ -24,6 +24,35 @@ body {
   -ms-overflow-style: none !important;
 }
 
+/* =========================================================================
+   SAFE-AREA INSETS FOR IPHONE NOTCHES, DYNAMIC ISLAND & HOME BARS
+   ========================================================================= */
+.safe-pt {
+  padding-top: max(1rem, env(safe-area-inset-top));
+}
+.safe-pb {
+  padding-bottom: max(1rem, env(safe-area-inset-bottom));
+}
+.safe-pl {
+  padding-left: max(1rem, env(safe-area-inset-left));
+}
+.safe-pr {
+  padding-right: max(1rem, env(safe-area-inset-right));
+}
+.safe-top-offset {
+  top: max(1rem, env(safe-area-inset-top));
+}
+.safe-bottom-offset {
+  bottom: max(1rem, env(safe-area-inset-bottom));
+}
+
+/* Mobile & Touch Device sticky hover guard */
+@media (hover: none), (pointer: coarse) {
+  .bento-anim-card:hover {
+    transform: none !important;
+  }
+}
+
 .font-serif {
   font-family: var(--font-serif), "Cormorant Garamond", Georgia, serif;
 }

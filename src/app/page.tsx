@@ -632,17 +632,17 @@ export default function PortfolioPage() {
   }, [guidelinePages]);
 
   return (
-    <div className="relative w-full h-screen overflow-hidden simon-sparks-bg text-[#f1f5f9] font-sans selection:bg-cyan-500/30 selection:text-cyan-200">
+    <div className="relative w-full h-[100dvh] overflow-hidden simon-sparks-bg text-[#f1f5f9] font-sans selection:bg-cyan-500/30 selection:text-cyan-200">
       {/* Background Subtle Radial Lighting Overlay (Clean Studio Canvas) */}
       <div className="fixed inset-0 pointer-events-none -z-10 bg-[radial-gradient(ellipse_80%_60%_at_50%_35%,rgba(14,45,95,0.45)_0%,transparent_100%)]" />
 
       {/* 1. PERSISTENT MINIMALIST GLOBAL HEADER (1:1 with Simon Sparks) */}
-      <header className="fixed top-0 left-0 right-0 z-50 pt-5 sm:pt-6 pb-2 px-4 sm:px-8 md:px-12 pointer-events-auto select-none">
+      <header className="fixed top-0 left-0 right-0 z-50 pt-4 sm:pt-6 pb-2 px-4 sm:px-8 md:px-12 pointer-events-auto select-none safe-pt">
         <nav className="w-full max-w-4xl lg:max-w-5xl mx-auto flex items-center justify-between">
           {/* ABOUT (Point 1) */}
           <button
             onClick={() => handlePageClick(0)}
-            className={`text-[11px] sm:text-[12px] md:text-[13px] font-sans font-bold tracking-[0.22em] uppercase transition-all duration-300 cursor-pointer ${
+            className={`min-h-[44px] inline-flex items-center px-2 text-[11px] sm:text-[12px] md:text-[13px] font-sans font-bold tracking-[0.22em] uppercase transition-all duration-300 cursor-pointer ${
               activePageIndex === 0 ? "text-[#f3bd8b] drop-shadow-[0_0_8px_rgba(243,189,139,0.5)]" : "text-[#abc8e6] hover:text-white"
             }`}
           >
@@ -655,7 +655,7 @@ export default function PortfolioPage() {
           {/* WORK (Point 2) */}
           <button
             onClick={() => handlePageClick(1)}
-            className={`text-[11px] sm:text-[12px] md:text-[13px] font-sans font-bold tracking-[0.22em] uppercase transition-all duration-300 cursor-pointer ${
+            className={`min-h-[44px] inline-flex items-center px-2 text-[11px] sm:text-[12px] md:text-[13px] font-sans font-bold tracking-[0.22em] uppercase transition-all duration-300 cursor-pointer ${
               activePageIndex === 1 ? "text-[#f3bd8b] drop-shadow-[0_0_8px_rgba(243,189,139,0.5)]" : "text-[#abc8e6] hover:text-white"
             }`}
           >
@@ -672,7 +672,7 @@ export default function PortfolioPage() {
               e.preventDefault();
               handlePageClick(0);
             }}
-            className="flex items-center justify-center group transition-transform duration-300 hover:scale-110 active:scale-95 cursor-pointer"
+            className="min-h-[44px] min-w-[44px] flex items-center justify-center group transition-transform duration-300 hover:scale-110 active:scale-95 cursor-pointer"
             aria-label="Simon Sparks"
           >
             <img
@@ -688,7 +688,7 @@ export default function PortfolioPage() {
           {/* SHOP (Point 3) */}
           <button
             onClick={() => handlePageClick(2)}
-            className={`text-[11px] sm:text-[12px] md:text-[13px] font-sans font-bold tracking-[0.22em] uppercase transition-all duration-300 cursor-pointer ${
+            className={`min-h-[44px] inline-flex items-center px-2 text-[11px] sm:text-[12px] md:text-[13px] font-sans font-bold tracking-[0.22em] uppercase transition-all duration-300 cursor-pointer ${
               activePageIndex === 2 ? "text-[#f3bd8b] drop-shadow-[0_0_8px_rgba(243,189,139,0.5)]" : "text-[#abc8e6] hover:text-white"
             }`}
           >
@@ -701,7 +701,7 @@ export default function PortfolioPage() {
           {/* CONTACTS (Point 4) */}
           <button
             onClick={() => handlePageClick(3)}
-            className={`text-[11px] sm:text-[12px] md:text-[13px] font-sans font-bold tracking-[0.22em] uppercase transition-all duration-300 cursor-pointer ${
+            className={`min-h-[44px] inline-flex items-center px-2 text-[11px] sm:text-[12px] md:text-[13px] font-sans font-bold tracking-[0.22em] uppercase transition-all duration-300 cursor-pointer ${
               activePageIndex === 3 ? "text-[#f3bd8b] drop-shadow-[0_0_8px_rgba(243,189,139,0.5)]" : "text-[#abc8e6] hover:text-white"
             }`}
           >

@@ -80,17 +80,21 @@ function postYt(iframe: HTMLIFrameElement | null, func: string, args: (string | 
   } catch {}
 }
 
-// Infinite Canvas Repeating Unit Dimensions (Borderless Seamless Mosaic)
-const TILE_WIDTH = 345;
-const TILE_HEIGHT = 475;
-const TILE_GAP = 0; // Seamless borderless mosaic (all footage touches edge-to-edge)
-const STEP_X = TILE_WIDTH + TILE_GAP; // 345px
-const STEP_Y = TILE_HEIGHT + TILE_GAP; // 475px
+// Infinite Canvas Repeating Unit Dimensions & Responsive Scales
+export function getTileSizeForWidth(vw: number) {
+  if (vw < 480) return { tile: { w: 260, h: 358 }, slider: { w: 300, h: 413 } }; // Small mobile (e.g. iPhone SE 375px)
+  if (vw < 768) return { tile: { w: 300, h: 413 }, slider: { w: 340, h: 468 } }; // Large mobile / Phablet
+  if (vw < 1024) return { tile: { w: 320, h: 440 }, slider: { w: 400, h: 551 } }; // Tablet
+  return { tile: { w: 345, h: 475 }, slider: { w: 450, h: 620 } }; // Desktop standard
+}
 
-const SLIDER_CARD_WIDTH = 450;
-const SLIDER_CARD_HEIGHT = 620; // Exact matched aspect ratio to TILE (345x475 -> 450x620)
+const DEFAULT_TILE_WIDTH = 345;
+const DEFAULT_TILE_HEIGHT = 475;
+const TILE_GAP = 0; // Seamless borderless mosaic (all footage touches edge-to-edge)
+
+const DEFAULT_SLIDER_CARD_WIDTH = 450;
+const DEFAULT_SLIDER_CARD_HEIGHT = 620; // Matched aspect ratio (0.726)
 const SLIDER_CARD_GAP = 0; // Seamless continuous filmstrip
-const SLIDER_STRIDE = SLIDER_CARD_WIDTH + SLIDER_CARD_GAP; // 450px
 
 const BLOCK_X_OFFSETS = [0, 1];
 const BLOCK_Y_OFFSETS = [0, 1];
@@ -106,29 +110,38 @@ function wrapRange(val: number, max: number): number {
 function getSnapCoordinates(
   rawX: number,
   rawY: number,
-  mode: 'grid' | 'slider' | 'list'
+  mode: 'grid' | 'slider' | 'list',
+  sizes?: { tile: { w: number; h: number }; slider: { w: number; h: number } }
 ): { x: number; y: number } {
   if (typeof window === 'undefined' || mode === 'list') return { x: rawX, y: rawY };
 
+  const currentSizes = sizes || getTileSizeForWidth(window.innerWidth);
   const scX = window.innerWidth / 2;
   const scY = window.innerHeight / 2;
 
+  const sWidth = currentSizes.slider.w;
+  const sStride = sWidth + SLIDER_CARD_GAP;
+  const tWidth = currentSizes.tile.w;
+  const tHeight = currentSizes.tile.h;
+  const sX = tWidth + TILE_GAP;
+  const sY = tHeight + TILE_GAP;
+
   if (mode === 'slider') {
-    const baseOffsetX = scX - SLIDER_CARD_WIDTH / 2;
-    const stepCountX = Math.round((rawX - baseOffsetX) / SLIDER_STRIDE);
-    const snapX = baseOffsetX + stepCountX * SLIDER_STRIDE;
+    const baseOffsetX = scX - sWidth / 2;
+    const stepCountX = Math.round((rawX - baseOffsetX) / sStride);
+    const snapX = baseOffsetX + stepCountX * sStride;
     return { x: snapX, y: 0 };
   }
 
   // Grid 2D mode: free movement in all directions, snapping to nearest card in both X and Y
-  const baseOffsetX = scX - TILE_WIDTH / 2;
-  const baseOffsetY = scY - TILE_HEIGHT / 2;
+  const baseOffsetX = scX - tWidth / 2;
+  const baseOffsetY = scY - tHeight / 2;
 
-  const stepCountX = Math.round((rawX - baseOffsetX) / STEP_X);
-  const stepCountY = Math.round((rawY - baseOffsetY) / STEP_Y);
+  const stepCountX = Math.round((rawX - baseOffsetX) / sX);
+  const stepCountY = Math.round((rawY - baseOffsetY) / sY);
 
-  const snapX = baseOffsetX + stepCountX * STEP_X;
-  const snapY = baseOffsetY + stepCountY * STEP_Y;
+  const snapX = baseOffsetX + stepCountX * sX;
+  const snapY = baseOffsetY + stepCountY * sY;
 
   return { x: snapX, y: snapY };
 }
@@ -144,6 +157,26 @@ export default function CategoryShowcasePage({
   const resolvedSearchParams = searchParams ? use(searchParams) : undefined;
   const categoryKey = resolvedParams.category?.toLowerCase();
   const category = CATEGORY_DATA[categoryKey];
+
+  // Dynamic responsive sizing hook: recalibrates tiles on mobile screens
+  const [tileSizes, setTileSizes] = useState(() =>
+    getTileSizeForWidth(typeof window !== 'undefined' ? window.innerWidth : 1440)
+  );
+
+  useEffect(() => {
+    const onResize = () => setTileSizes(getTileSizeForWidth(window.innerWidth));
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+
+  const TILE_WIDTH = tileSizes.tile.w;
+  const TILE_HEIGHT = tileSizes.tile.h;
+  const STEP_X = TILE_WIDTH + TILE_GAP;
+  const STEP_Y = TILE_HEIGHT + TILE_GAP;
+
+  const SLIDER_CARD_WIDTH = tileSizes.slider.w;
+  const SLIDER_CARD_HEIGHT = tileSizes.slider.h;
+  const SLIDER_STRIDE = SLIDER_CARD_WIDTH + SLIDER_CARD_GAP;
 
   if (!category) {
     notFound();
@@ -1669,23 +1702,23 @@ export default function CategoryShowcasePage({
   return (
     <div
       ref={containerRef}
-      className="relative w-screen h-screen overflow-hidden select-none bg-[#030712] text-zinc-100 font-sans cursor-grab active:cursor-grabbing opacity-100"
+      className="relative w-screen h-[100dvh] overflow-hidden select-none bg-[#030712] text-zinc-100 font-sans cursor-grab active:cursor-grabbing opacity-100"
       style={{
         touchAction: 'none',
       }}
     >
       {/* 2. TOP FIXED EDITORIAL HUD BAR (1:1 Remy Shoots style) */}
-      <header className="fixed top-0 left-0 right-0 z-40 px-6 py-5 flex items-start justify-between pointer-events-none">
+      <header className="fixed top-0 left-0 right-0 z-40 px-4 sm:px-6 py-2 sm:py-5 flex items-start justify-between pointer-events-none safe-pt">
         {/* Top-Left: Monogram & Editorial Tagline */}
         <div className="pointer-events-auto flex items-start gap-4">
           <button
             type="button"
             onClick={handleBackToWork}
-            className="font-mono text-sm tracking-widest font-black uppercase text-zinc-200 hover:text-cyan-400 transition-colors py-0.5 cursor-pointer text-left"
+            className="min-h-[44px] inline-flex items-center font-mono text-sm tracking-widest font-black uppercase text-zinc-200 hover:text-cyan-400 transition-colors py-0.5 cursor-pointer text-left"
           >
             RG<sup>®</sup>
           </button>
-          <div className="border-l border-zinc-700/60 pl-4">
+          <div className="hidden sm:block border-l border-zinc-700/60 pl-4">
             <p className="font-mono text-[10px] tracking-[0.25em] uppercase leading-relaxed text-zinc-400">
               DOCUMENTING EMOTION,
               <br />
@@ -1695,19 +1728,19 @@ export default function CategoryShowcasePage({
         </div>
 
         {/* Top-Center: Minimalist View Mode Switcher (SLIDER / GRID) - 1:1 RemyShoots style */}
-        <div className="absolute left-1/2 -translate-x-1/2 top-5 pointer-events-auto flex items-center gap-8 select-none font-mono text-[11px] md:text-[12px] tracking-[0.25em] font-bold uppercase drop-shadow-[0_2px_10px_rgba(0,0,0,0.8)]">
+        <div className="absolute left-1/2 -translate-x-1/2 top-1 sm:top-5 pointer-events-auto flex items-center gap-6 sm:gap-8 select-none font-mono text-[11px] md:text-[12px] tracking-[0.25em] font-bold uppercase drop-shadow-[0_2px_10px_rgba(0,0,0,0.8)]">
           <div className="flex flex-col items-center">
             <button
               type="button"
               onClick={() => switchViewMode('slider')}
-              className={`transition-colors py-0.5 ${
+              className={`min-h-[44px] min-w-[44px] inline-flex items-center justify-center transition-colors py-0.5 ${
                 viewMode === 'slider' ? 'text-white font-bold' : 'text-zinc-500 hover:text-zinc-300'
               }`}
             >
               SLIDER
             </button>
             <span
-              className={`text-[8px] text-[#ef4444] leading-none mt-1 transition-opacity duration-200 ${
+              className={`text-[8px] text-[#ef4444] leading-none -mt-1 transition-opacity duration-200 ${
                 viewMode === 'slider' ? 'opacity-100' : 'opacity-0 pointer-events-none'
               }`}
             >
@@ -1719,14 +1752,14 @@ export default function CategoryShowcasePage({
             <button
               type="button"
               onClick={() => switchViewMode('grid')}
-              className={`transition-colors py-0.5 ${
+              className={`min-h-[44px] min-w-[44px] inline-flex items-center justify-center transition-colors py-0.5 ${
                 viewMode === 'grid' ? 'text-white font-bold' : 'text-zinc-500 hover:text-zinc-300'
               }`}
             >
               GRID
             </button>
             <span
-              className={`text-[8px] text-[#ef4444] leading-none mt-1 transition-opacity duration-200 ${
+              className={`text-[8px] text-[#ef4444] leading-none -mt-1 transition-opacity duration-200 ${
                 viewMode === 'grid' ? 'opacity-100' : 'opacity-0 pointer-events-none'
               }`}
             >
@@ -1741,7 +1774,7 @@ export default function CategoryShowcasePage({
           <button
             type="button"
             onClick={handleBackToWork}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-zinc-900/80 border border-zinc-700/60 text-zinc-300 hover:text-cyan-400 hover:border-cyan-400/60 transition-all shadow-md backdrop-blur-md cursor-pointer"
+            className="min-h-[44px] min-w-[44px] flex items-center justify-center gap-2 px-3.5 py-1.5 rounded-full bg-zinc-900/80 border border-zinc-700/60 text-zinc-300 hover:text-cyan-400 hover:border-cyan-400/60 transition-all shadow-md backdrop-blur-md cursor-pointer"
           >
             <ArrowLeft className="w-3.5 h-3.5" />
             <span>BACK</span>
@@ -2084,16 +2117,17 @@ export default function CategoryShowcasePage({
       />
 
       {/* 4. BOTTOM FIXED TECHNICAL HUD BAR */}
-      <footer className="fixed bottom-0 left-0 right-0 z-40 px-6 py-4 flex flex-col pointer-events-none">
+      <footer className="fixed bottom-0 left-0 right-0 z-40 px-6 py-3 sm:py-4 flex flex-col pointer-events-none safe-pb">
         <div className="flex items-center justify-center text-zinc-500 font-mono text-[9px] tracking-[0.3em] uppercase pointer-events-auto">
           {/* Bottom Center: Gesture Instructions */}
-          <div className="hidden md:flex items-center gap-2">
-            <span>GESTURES : [FREE DRAG & WHEEL SCROLL]</span>
+          <div className="flex items-center gap-2">
+            <span className="hidden md:inline">GESTURES : [FREE DRAG & WHEEL SCROLL]</span>
+            <span className="inline md:hidden text-[8px] tracking-[0.2em] text-zinc-400">GESTURES : [SWIPE TO EXPLORE]</span>
           </div>
         </div>
 
         {/* Film Camera Ruler Tick Marks along bottom */}
-        <div className="w-full pt-2 flex items-center justify-between opacity-30 select-none overflow-hidden font-mono text-[8px] text-zinc-500">
+        <div className="w-full pt-1.5 flex items-center justify-between opacity-30 select-none overflow-hidden font-mono text-[8px] text-zinc-500">
           <span>| . . . . | . . . . | . . . . | . . . . | . . . . | . . . . | . . . . | . . . . | . . . . | . . . . | . . . . | . . . . | . . . . | . . . . | . . . . | . . . . |</span>
         </div>
       </footer>
