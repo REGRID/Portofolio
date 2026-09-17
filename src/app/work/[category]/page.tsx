@@ -2154,7 +2154,7 @@ export default function CategoryShowcasePage({
                 >
                   {activeModalProject.youtube_id || activeModalProject.video_url?.includes('youtube.com') || activeModalProject.video_url?.includes('youtu.be') ? (
                     <iframe
-                      src={`https://www.youtube.com/embed/${activeModalProject.youtube_id || (activeModalProject.video_url.includes('v=') ? activeModalProject.video_url.split('v=')[1]?.split('&')[0] : activeModalProject.video_url.split('/').pop())}?autoplay=1&controls=1&enablejsapi=1&rel=0&playsinline=1`}
+                      src={`https://www.youtube.com/embed/${activeModalProject.youtube_id || (activeModalProject.video_url?.includes('v=') ? activeModalProject.video_url.split('v=')[1]?.split('&')[0] : activeModalProject.video_url?.split('/').pop()?.split('?')[0])}?autoplay=1&controls=1&enablejsapi=1&rel=0&playsinline=1`}
                       title={activeModalProject.title}
                       className="w-full h-full border-0 pointer-events-auto"
                       allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
