@@ -1509,9 +1509,9 @@ export default function PortfolioPage() {
             <div className="relative aspect-video w-full bg-black">
               {selectedVideo.video_url.includes('youtube.com') || selectedVideo.video_url.includes('youtu.be') ? (
                 <iframe
-                  src={selectedVideo.video_url.replace('watch?v=', 'embed/')}
+                  src={`${selectedVideo.video_url.replace('watch?v=', 'embed/')}?autoplay=1&mute=1&controls=1&enablejsapi=1&rel=0`}
                   title={selectedVideo.title}
-                  className="w-full h-full"
+                  className="w-full h-full border-0"
                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                   allowFullScreen
                 />

@@ -299,27 +299,34 @@ export default function CategoryShowcasePage({
 
     if (target.video) {
       const v = target.video;
-      v.muted = false;
-      v.volume = 0;
+      // Start muted to comply 100% with browser autoplay policy (Chrome/Edge/Safari/Firefox)
+      v.muted = true;
       const playPromise = v.play();
       if (playPromise !== undefined) {
-        playPromise.catch(() => {
-          v.muted = true;
-          v.play();
-        });
+        playPromise
+          .then(() => {
+            // Attempt smooth audio fade-in if user has interacted with the document
+            let vol = 0;
+            state.fadeTimer = setInterval(() => {
+              vol += 0.08;
+              if (vol >= 1.0) {
+                vol = 1.0;
+                if (state.fadeTimer) clearInterval(state.fadeTimer);
+              }
+              state.currentVolume = vol * 100;
+              try {
+                v.muted = false;
+                if (!v.muted) v.volume = Math.min(1, vol);
+              } catch {
+                v.muted = true;
+              }
+            }, 40);
+          })
+          .catch(() => {
+            v.muted = true;
+            v.play().catch(() => {});
+          });
       }
-      let vol = 0;
-      state.fadeTimer = setInterval(() => {
-        vol += 0.08;
-        if (vol >= 1.0) {
-          vol = 1.0;
-          if (state.fadeTimer) clearInterval(state.fadeTimer);
-        }
-        state.currentVolume = vol * 100;
-        try {
-          if (!v.muted) v.volume = Math.min(1, vol);
-        } catch {}
-      }, 40);
     }
   }, []);
 
@@ -1880,15 +1887,15 @@ export default function CategoryShowcasePage({
                               className="color-img w-full h-full object-cover pointer-events-none"
                             />
                           </div>
-                          {project.preview_video ? (
+                          {project.preview_video || (project.video_url?.endsWith('.mp4') ? project.video_url : null) ? (
                             <div className="card-video-layer absolute inset-0 w-full h-full overflow-hidden pointer-events-none opacity-0 transition-opacity duration-500 z-10 bg-black">
                               <video
                                 data-card-video={project.id}
-                                src={project.preview_video}
+                                src={project.preview_video || project.video_url}
                                 loop
                                 muted
                                 playsInline
-                                preload="none"
+                                preload="auto"
                                 className="w-full h-full object-cover pointer-events-none"
                               />
                               <div className="card-audio-indicator absolute bottom-4 right-4 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/80 backdrop-blur-md border border-cyan-400/50 text-[9px] font-mono text-cyan-300 opacity-0 transition-opacity duration-300 shadow-[0_0_15px_rgba(56,189,248,0.4)]">
@@ -1985,15 +1992,15 @@ export default function CategoryShowcasePage({
                           className="color-img w-full h-full object-cover pointer-events-none"
                         />
                       </div>
-                      {project.preview_video ? (
+                      {project.preview_video || (project.video_url?.endsWith('.mp4') ? project.video_url : null) ? (
                         <div className="card-video-layer absolute inset-0 w-full h-full overflow-hidden pointer-events-none opacity-0 transition-opacity duration-500 z-10 bg-black">
                           <video
                             data-card-video={project.id}
-                            src={project.preview_video}
+                            src={project.preview_video || project.video_url}
                             loop
                             muted
                             playsInline
-                            preload="none"
+                            preload="auto"
                             className="w-full h-full object-cover pointer-events-none"
                           />
                           <div className="card-audio-indicator absolute bottom-4 right-4 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/80 backdrop-blur-md border border-cyan-400/50 text-[9px] font-mono text-cyan-300 opacity-0 transition-opacity duration-300 shadow-[0_0_15px_rgba(56,189,248,0.4)]">
@@ -2168,16 +2175,17 @@ export default function CategoryShowcasePage({
                 >
                   {activeModalProject.youtube_id || activeModalProject.video_url?.includes('youtube.com') || activeModalProject.video_url?.includes('youtu.be') ? (
                     <iframe
-                      src={`https://www.youtube.com/embed/${activeModalProject.youtube_id || (activeModalProject.video_url.includes('v=') ? activeModalProject.video_url.split('v=')[1]?.split('&')[0] : activeModalProject.video_url.split('/').pop())}?autoplay=1&controls=1&modestbranding=1&rel=0&playsinline=1`}
+                      src={`https://www.youtube.com/embed/${activeModalProject.youtube_id || (activeModalProject.video_url.includes('v=') ? activeModalProject.video_url.split('v=')[1]?.split('&')[0] : activeModalProject.video_url.split('/').pop())}?autoplay=1&mute=1&controls=1&enablejsapi=1&rel=0&playsinline=1`}
                       title={activeModalProject.title}
                       className="w-full h-full border-0 pointer-events-auto"
-                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                       allowFullScreen
                     />
                   ) : activeModalProject.preview_video || activeModalProject.video_url?.endsWith('.mp4') ? (
                     <video
                       src={activeModalProject.preview_video || activeModalProject.video_url}
                       autoPlay
+                      muted
                       loop
                       playsInline
                       controls
