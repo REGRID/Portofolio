@@ -54,10 +54,31 @@ export function GridTransitionProvider({
   const hasMixedRef = useRef(false);
   const activeSlugRef = useRef<string | null>(null);
 
-  // Accessible Reduced-Motion Check
-  const prefersReducedMotion =
-    typeof window !== 'undefined' &&
-    window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  // Track pathname transitions to safely clean up overlay only when returning to homepage
+  const prevPathnameRef = useRef(pathname);
+
+  useEffect(() => {
+    // Clean up if returning from a /work/ route back to homepage
+    if (prevPathnameRef.current.startsWith('/work/') && pathname === '/') {
+      setActiveTransition(null);
+      isReadyToMixRef.current = false;
+      hasMixedRef.current = false;
+      activeSlugRef.current = null;
+    }
+    prevPathnameRef.current = pathname;
+  }, [pathname]);
+
+  // If user hits browser Back / Forward buttons during transition, safely dismiss
+  useEffect(() => {
+    const handlePopState = () => {
+      setActiveTransition(null);
+      isReadyToMixRef.current = false;
+      hasMixedRef.current = false;
+      activeSlugRef.current = null;
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
 
   const startGridTransition = useCallback(
     (data: GridTransitionData) => {
@@ -67,12 +88,13 @@ export function GridTransitionProvider({
           sessionStorage.removeItem(`portfolio_state_${data.slug}`);
           localStorage.removeItem(`portfolio_state_${data.slug}`);
         } catch {}
-      }
 
-      // If user prefers reduced motion, navigate immediately without animation
-      if (prefersReducedMotion) {
-        router.push(`/work/${data.slug}`);
-        return;
+        // If user prefers reduced motion, navigate immediately without animation
+        const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        if (reduced) {
+          router.push(`/work/${data.slug}`);
+          return;
+        }
       }
 
       // Prefetch destination route immediately
@@ -83,18 +105,8 @@ export function GridTransitionProvider({
       activeSlugRef.current = data.slug;
       setActiveTransition(data);
     },
-    [router, prefersReducedMotion]
+    [router]
   );
-
-  // Reset / cancel transition if user navigates back to homepage or another page abruptly
-  useEffect(() => {
-    if (pathname === '/' && activeTransition) {
-      setActiveTransition(null);
-      isReadyToMixRef.current = false;
-      hasMixedRef.current = false;
-      activeSlugRef.current = null;
-    }
-  }, [pathname, activeTransition]);
 
   // GSAP 1:1 Timeline (Glide -> Hold -> Expand to 100vw x 100dvh)
   useEffect(() => {
