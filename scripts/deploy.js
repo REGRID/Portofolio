@@ -55,7 +55,7 @@ async function runDeploy() {
     console.log('✅ Berhasil terhubung ke VPS!');
     console.log(`📦 Menjalankan proses update di ${projectDir}...\n`);
 
-    const cmd = `cd ${projectDir} && git pull origin main && npm install && npm run build && (pm2 restart portfolio || pm2 restart all || pm2 start ecosystem.config.js)`;
+    const cmd = `cd ${projectDir} && git fetch origin main && git reset --hard origin/main && git clean -fd && npm install && npm run build && (pm2 restart portfolio || pm2 restart all || pm2 start ecosystem.config.js)`;
 
     conn.exec(cmd, (err, stream) => {
       if (err) {
