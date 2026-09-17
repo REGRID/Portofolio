@@ -11,6 +11,7 @@ import React, {
 import { useRouter, usePathname } from 'next/navigation';
 import gsap from 'gsap';
 import { CategoryProject } from '@/data/categoryData';
+import { EASE, DURATION } from '@/lib/motion-tokens';
 
 export interface GridTransitionData {
   slug: string;
@@ -53,6 +54,11 @@ export function GridTransitionProvider({
   const hasMixedRef = useRef(false);
   const activeSlugRef = useRef<string | null>(null);
 
+  // Accessible Reduced-Motion Check
+  const prefersReducedMotion =
+    typeof window !== 'undefined' &&
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
   const startGridTransition = useCallback(
     (data: GridTransitionData) => {
       // Clear any stored drag positions for fresh Card #1 alignment
@@ -63,6 +69,12 @@ export function GridTransitionProvider({
         } catch {}
       }
 
+      // If user prefers reduced motion, navigate immediately without animation
+      if (prefersReducedMotion) {
+        router.push(`/work/${data.slug}`);
+        return;
+      }
+
       // Prefetch destination route immediately
       router.prefetch(`/work/${data.slug}`);
 
@@ -71,8 +83,18 @@ export function GridTransitionProvider({
       activeSlugRef.current = data.slug;
       setActiveTransition(data);
     },
-    [router]
+    [router, prefersReducedMotion]
   );
+
+  // Reset / cancel transition if user navigates back to homepage or another page abruptly
+  useEffect(() => {
+    if (pathname === '/' && activeTransition) {
+      setActiveTransition(null);
+      isReadyToMixRef.current = false;
+      hasMixedRef.current = false;
+      activeSlugRef.current = null;
+    }
+  }, [pathname, activeTransition]);
 
   // GSAP 1:1 Timeline (Glide -> Hold -> Expand to 100vw x 100dvh)
   useEffect(() => {
@@ -105,8 +127,8 @@ export function GridTransitionProvider({
             hasMixedRef.current = true;
             gsap.to(portalOverlayRef.current, {
               opacity: 0,
-              duration: 0.45,
-              ease: 'power2.inOut',
+              duration: DURATION.mix,
+              ease: EASE.inOut.gsap,
               onComplete: () => {
                 setActiveTransition(null);
                 isReadyToMixRef.current = false;
@@ -118,7 +140,7 @@ export function GridTransitionProvider({
       },
     });
 
-    // 1. Smoothly glide to center
+    // 1. Smoothly glide to center using signature smoothOut curve
     tl.to(wrapper, {
       left: '50%',
       top: '50%',
@@ -126,30 +148,30 @@ export function GridTransitionProvider({
       height: 475,
       borderRadius: 24,
       duration: 0.42,
-      ease: 'power3.out',
+      ease: EASE.smoothOut.gsap,
     })
-    // 2. Fase A: Idle hold in center (0.53s)
-    .to({}, { duration: 0.53 })
-    // 3. Fase B: Expand width (1.15s, expo.inOut)
+    // 2. Fase A: Idle hold in center
+    .to({}, { duration: DURATION.hold })
+    // 3. Fase B: Expand width using expoInOut
     .to(wrapper, {
       width: '100vw',
       borderRadius: 0,
-      duration: 1.15,
-      ease: 'expo.inOut',
+      duration: DURATION.revealWidth,
+      ease: EASE.expoInOut.gsap,
     }, '>')
-    // 4. Fase B: Expand height (1.35s, expo.inOut, starts 0.1s after width)
+    // 4. Fase B: Expand height (starts 0.1s after width)
     .to(wrapper, {
       height: '100dvh',
       borderRadius: 0,
-      duration: 1.35,
-      ease: 'expo.inOut',
+      duration: DURATION.revealHeight,
+      ease: EASE.expoInOut.gsap,
     }, '<0.1')
     // Smoothly dissolve portal accents (red outline and cyan bottom line)
     .to('.portal-accent-line, .portal-center-border', {
       opacity: 0,
-      duration: 0.35,
-      ease: 'power2.out',
-    }, '-=0.35');
+      duration: DURATION.medium,
+      ease: EASE.smoothOut.gsap,
+    }, `-=${DURATION.medium}`);
 
     return () => {
       tl.kill();
@@ -169,8 +191,8 @@ export function GridTransitionProvider({
         if (portalOverlayRef.current) {
           gsap.to(portalOverlayRef.current, {
             opacity: 0,
-            duration: 0.45,
-            ease: 'power2.inOut',
+            duration: DURATION.mix,
+            ease: EASE.inOut.gsap,
             onComplete: () => {
               setActiveTransition(null);
               isReadyToMixRef.current = false;

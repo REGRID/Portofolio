@@ -8,6 +8,7 @@ import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 import { CATEGORY_DATA, CategoryProject } from '@/data/categoryData';
 import { useGridTransition } from '@/components/GridTransitionProvider';
+import { EASE, DURATION } from '@/lib/motion-tokens';
 
 if (typeof window !== 'undefined') {
   gsap.registerPlugin(ScrollTrigger);
@@ -105,13 +106,13 @@ export default function PortfolioPage() {
     }, 3800);
   }, []);
 
-  // Transitions.dev Asymmetric Modal Close Handlers (open: 250ms, close: 150ms)
+  // Transitions.dev Asymmetric Modal Close Handlers (open: DURATION.fast, close: DURATION.quick)
   const closeCvModal = useCallback(() => {
     setIsCvClosing(true);
     setTimeout(() => {
       setIsCvOpen(false);
       setIsCvClosing(false);
-    }, 150);
+    }, DURATION.quick * 1000);
   }, []);
 
   const closeVideoModal = useCallback(() => {
@@ -119,7 +120,7 @@ export default function PortfolioPage() {
     setTimeout(() => {
       setSelectedVideo(null);
       setIsVideoClosing(false);
-    }, 150);
+    }, DURATION.quick * 1000);
   }, []);
 
   // Transitions.dev 3D Card Hover Tilt with Pointer-Tracked Glare (19-card-tilt.md)

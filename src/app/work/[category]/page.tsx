@@ -2225,7 +2225,7 @@ export default function CategoryShowcasePage({
           className="fixed inset-0 z-50 pointer-events-none flex flex-col items-center justify-center select-none overflow-hidden"
           style={{
             backgroundColor: 'rgba(3, 8, 26, 0.92)',
-            animation: 'zoomOutBgFade 0.88s cubic-bezier(0.65, 0, 0.15, 1) forwards',
+            animation: 'zoomOutBgFade 0.88s var(--ease-in-out) forwards',
           }}
         >
           {/* Contracting Reverse Aperture Ring */}
@@ -2235,7 +2235,7 @@ export default function CategoryShowcasePage({
               width: '180px',
               height: '180px',
               boxShadow: '0 0 100px rgba(56,189,248,0.9), inset 0 0 70px rgba(56,189,248,0.6)',
-              animation: 'zoomOutRingContract 0.88s cubic-bezier(0.65, 0, 0.15, 1) forwards',
+              animation: 'zoomOutRingContract 0.88s var(--ease-in-out) forwards',
             }}
           />
 

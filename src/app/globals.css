@@ -432,9 +432,10 @@ body,
   --duration-slow: 400ms;
   --duration-very-slow: 500ms;
 
-  /* Easings */
-  --ease-smooth-out: cubic-bezier(0.22, 1, 0.36, 1);
-  --ease-in-out: ease-in-out;
+  /* Easings - Synchronized with src/lib/motion-tokens.ts */
+  --ease-smooth-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --ease-expo-in-out: cubic-bezier(0.87, 0, 0.13, 1);
   --ease-out: ease-out;
   --ease-linear: linear;
   --ease-bounce: cubic-bezier(0.34, 1.36, 0.64, 1);
@@ -463,17 +464,17 @@ body,
   --modal-close-dur: 150ms;
   --modal-scale: 0.96;
   --modal-scale-close: 0.96;
-  --modal-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --modal-ease: var(--ease-smooth-out);
 
   /* Card hover tilt (19-card-tilt.md) */
   --tilt-perspective: 1000px;
   --tilt-return: 800ms;
-  --tilt-return-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --tilt-return-ease: var(--ease-smooth-out);
   --tilt-follow: 300ms;
-  --tilt-follow-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --tilt-follow-ease: var(--ease-smooth-out);
   --tilt-glare-opacity: 0.38;
   --tilt-glare-fade: 300ms;
-  --tilt-glare-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --tilt-glare-ease: var(--ease-smooth-out);
 
   /* Shimmer text (15-shimmer-text.md) */
   --shimmer-dur: 2400ms;
@@ -492,11 +493,11 @@ body,
   --check-blur-from: 8px;
   --check-path-dur: 500ms;
   --check-path-delay: 80ms;
-  --check-ease-out: cubic-bezier(0.22, 1, 0.36, 1);
-  --check-ease-opacity: cubic-bezier(0.22, 1, 0.36, 1);
-  --check-ease-rotate: cubic-bezier(0.22, 1, 0.36, 1);
-  --check-ease-bob: cubic-bezier(0.34, 1.35, 0.64, 1);
-  --check-ease-path: cubic-bezier(0.22, 1, 0.36, 1);
+  --check-ease-out: var(--ease-smooth-out);
+  --check-ease-opacity: var(--ease-smooth-out);
+  --check-ease-rotate: var(--ease-smooth-out);
+  --check-ease-bob: var(--ease-bounce);
+  --check-ease-path: var(--ease-smooth-out);
 
   /* Toast open / close (22-toast.md) */
   --toast-open: 350ms;
@@ -504,21 +505,21 @@ body,
   --toast-distance: 16px;
   --toast-blur: 2px;
   --toast-scale: 0.97;
-  --toast-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --toast-ease: var(--ease-smooth-out);
 
   /* Learn more hover (24-learn-more-hover.md) */
   --learn-shift: 3px;
   --learn-spread: 9deg;
   --learn-in: 300ms;
   --learn-out: 300ms;
-  --learn-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --learn-ease: var(--ease-smooth-out);
 
   /* Error state shake (12-error-state-shake.md) */
   --shake-distance: 6px;
   --shake-overshoot: 3px;
   --shake-dur-a: 80ms;
   --shake-dur-b: 60ms;
-  --shake-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --shake-ease: var(--ease-smooth-out);
 }
 
 /* ── 06. Modal Open / Close Transition (Asymmetric) ── */
