@@ -6,6 +6,7 @@ import Lenis from 'lenis';
 import Snap from 'lenis/snap';
 import gsap from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
+import { CATEGORY_DATA } from '@/data/categoryData';
 
 if (typeof window !== 'undefined') {
   gsap.registerPlugin(ScrollTrigger);
@@ -58,7 +59,7 @@ export default function PortfolioPage() {
   const [isContactOpen, setIsContactOpen] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  // Cinema Zoom-In Portal Transition State
+  // Cinema Zoom-In Portal Transition State (3-Stage Steady Frame Expansion)
   const [zoomingPortal, setZoomingPortal] = useState<{
     slug: string;
     title: string;
@@ -67,7 +68,7 @@ export default function PortfolioPage() {
     y: number;
     width: number;
     height: number;
-    isDiving: boolean;
+    stage: 'init' | 'centered' | 'expanding';
   } | null>(null);
 
   const handleCardCategoryClick = useCallback((card: {
@@ -77,34 +78,47 @@ export default function PortfolioPage() {
     image: string;
   }, e: React.MouseEvent<HTMLDivElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
+    const resolvedImage = CATEGORY_DATA[card.slug]?.projects[0]?.thumbnail || card.image;
 
+    // Stage 1 (init): Lock exact click position
     setZoomingPortal({
       slug: card.slug,
       title: card.title,
-      image: card.image,
+      image: resolvedImage,
       x: rect.left,
       y: rect.top,
       width: rect.width,
       height: rect.height,
-      isDiving: false,
+      stage: 'init',
     });
 
-    // In next tick, trigger acceleration into screen center with smooth cinematic curve
+    // Animate smoothly to screen center
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
-        setZoomingPortal((prev) => (prev ? { ...prev, isDiving: true } : null));
+        setZoomingPortal((prev) => (prev ? { ...prev, stage: 'centered' } : null));
       });
     });
 
-    // Navigate to category showcase page at peak of dive (1000ms for luxurious cinematic pace)
-    setTimeout(() => {
+    // Stage 2: Steady pause moment at center, then Stage 3: Card frame expands outward
+    const expandTimer = setTimeout(() => {
+      setZoomingPortal((prev) => (prev ? { ...prev, stage: 'expanding' } : null));
+    }, 750);
+
+    // Navigate to category showcase page as the frame reaches full screen
+    const navTimer = setTimeout(() => {
       router.push(`/work/${card.slug}`);
-    }, 1000);
+    }, 1450);
 
     // Clean up
-    setTimeout(() => {
+    const cleanupTimer = setTimeout(() => {
       setZoomingPortal(null);
-    }, 1900);
+    }, 2400);
+
+    return () => {
+      clearTimeout(expandTimer);
+      clearTimeout(navTimer);
+      clearTimeout(cleanupTimer);
+    };
   }, [router]);
 
   // Transitions.dev Toast State
@@ -945,7 +959,7 @@ export default function PortfolioPage() {
                     slug: 'commercial',
                     title: 'COMMERCIAL',
                     indexStr: '01',
-                    image: '/reference_assets/card_studio74_art.jpg',
+                    image: CATEGORY_DATA['commercial']?.projects[0]?.thumbnail || '/reference_assets/card_studio74_art.jpg',
                     projectIndex: 0,
                     staggerNext: 0,
                     staggerPrev: 4,
@@ -969,7 +983,7 @@ export default function PortfolioPage() {
                     slug: 'narrative',
                     title: 'NARRATIVE',
                     indexStr: '02',
-                    image: '/reference_assets/card_gloster_art.jpg',
+                    image: CATEGORY_DATA['narrative']?.projects[0]?.thumbnail || '/reference_assets/card_gloster_art.jpg',
                     projectIndex: 1,
                     staggerNext: 1,
                     staggerPrev: 3,
@@ -993,7 +1007,7 @@ export default function PortfolioPage() {
                     slug: 'music-video',
                     title: 'MUSIC VIDEO',
                     indexStr: '03',
-                    image: '/reference_assets/card_linea_fluid.png',
+                    image: CATEGORY_DATA['music-video']?.projects[0]?.thumbnail || '/reference_assets/card_linea_fluid.png',
                     projectIndex: 2,
                     staggerNext: 2,
                     staggerPrev: 2,
@@ -1017,7 +1031,7 @@ export default function PortfolioPage() {
                     slug: 'event-reel',
                     title: 'EVENT & REEL',
                     indexStr: '04',
-                    image: '/reference_assets/card_cube_art.jpg',
+                    image: CATEGORY_DATA['event-reel']?.projects[0]?.thumbnail || '/reference_assets/card_cube_art.jpg',
                     projectIndex: 3,
                     staggerNext: 3,
                     staggerPrev: 1,
@@ -1661,64 +1675,84 @@ export default function PortfolioPage() {
         <span className="font-mono text-xs tracking-wide">{toast.message}</span>
       </div>
 
-      {/* 13. CINEMA ZOOM-IN PORTAL TRANSITION OVERLAY (AWWWARDS CAMERA DIVE) */}
+      {/* 13. CINEMA 3-STAGE STEADY-MEDIA EXPANDING FRAME PORTAL TRANSITION */}
       {zoomingPortal && (
         <div
           className="fixed inset-0 z-50 pointer-events-none overflow-hidden flex items-center justify-center select-none"
           style={{
-            backgroundColor: zoomingPortal.isDiving ? 'rgba(3, 8, 26, 0.98)' : 'rgba(3, 8, 26, 0)',
-            transition: 'background-color 1.1s cubic-bezier(0.65, 0, 0.15, 1)',
+            backgroundColor:
+              zoomingPortal.stage === 'init'
+                ? 'rgba(3, 8, 26, 0)'
+                : zoomingPortal.stage === 'centered'
+                ? 'rgba(3, 8, 26, 0.92)'
+                : 'rgba(3, 8, 26, 1)',
+            transition: 'background-color 0.6s cubic-bezier(0.16, 1, 0.3, 1)',
           }}
         >
-          {/* Zooming Card Clone diving into screen center */}
+          {/* Expanding Card Frame with Steady Inner Content */}
           <div
-            className="rounded-xl overflow-hidden border border-cyan-400 shadow-[0_0_80px_rgba(56,189,248,0.85)] will-change-transform"
+            className="overflow-hidden will-change-transform"
             style={{
               position: 'fixed',
-              left: zoomingPortal.isDiving ? '50%' : `${zoomingPortal.x}px`,
-              top: zoomingPortal.isDiving ? '50%' : `${zoomingPortal.y}px`,
-              width: `${zoomingPortal.width}px`,
-              height: `${zoomingPortal.height}px`,
-              transform: zoomingPortal.isDiving
-                ? 'translate(-50%, -50%) scale(16)'
-                : 'translate(0, 0) scale(1)',
-              opacity: zoomingPortal.isDiving ? 0.95 : 1,
-              filter: zoomingPortal.isDiving ? 'blur(1.5px) brightness(1.2)' : 'none',
-              transition: 'all 1.1s cubic-bezier(0.65, 0, 0.15, 1)',
+              left: zoomingPortal.stage === 'init' ? `${zoomingPortal.x}px` : '50%',
+              top: zoomingPortal.stage === 'init' ? `${zoomingPortal.y}px` : '50%',
+              width:
+                zoomingPortal.stage === 'init'
+                  ? `${zoomingPortal.width}px`
+                  : zoomingPortal.stage === 'centered'
+                  ? 'clamp(320px, 34vw, 480px)'
+                  : '100vw',
+              height:
+                zoomingPortal.stage === 'init'
+                  ? `${zoomingPortal.height}px`
+                  : zoomingPortal.stage === 'centered'
+                  ? 'clamp(440px, 58vh, 640px)'
+                  : '100vh',
+              transform:
+                zoomingPortal.stage === 'init' ? 'translate(0, 0)' : 'translate(-50%, -50%)',
+              borderRadius:
+                zoomingPortal.stage === 'expanding' ? '0px' : '16px',
+              border:
+                zoomingPortal.stage === 'expanding'
+                  ? 'none'
+                  : '1.5px solid rgba(56, 189, 248, 0.95)',
+              boxShadow:
+                zoomingPortal.stage === 'expanding'
+                  ? 'none'
+                  : '0 0 65px rgba(56,189,248,0.6), 0 20px 50px rgba(0,0,0,0.85)',
+              transition:
+                zoomingPortal.stage === 'expanding'
+                  ? 'all 0.70s cubic-bezier(0.22, 1, 0.36, 1)'
+                  : 'all 0.52s cubic-bezier(0.16, 1, 0.3, 1)',
             }}
           >
+            {/* Inner Content #1 Visual (Steady, Crisp, No Distortion) */}
             <img
               src={zoomingPortal.image}
-              alt={zoomingPortal.title}
-              className="w-full h-full object-cover"
+              alt=""
+              className="w-full h-full object-cover will-change-transform"
+              style={{
+                transform: zoomingPortal.stage === 'expanding' ? 'scale(1.02)' : 'scale(1)',
+                transition: 'transform 0.8s cubic-bezier(0.22, 1, 0.36, 1)',
+              }}
             />
-            {/* Cinematic Lens Flare & Dark Tunnel Vignette */}
-            <div className="absolute inset-0 bg-gradient-to-t from-[#020512] via-cyan-950/30 to-transparent" />
-            <div className="absolute inset-0 border-4 border-cyan-400/90 rounded-xl" />
-          </div>
 
-          {/* Expanding Center Cinema Aperture Ring Glow */}
-          <div
-            className="absolute rounded-full border border-cyan-300/80 pointer-events-none"
-            style={{
-              width: zoomingPortal.isDiving ? '160vmax' : '40px',
-              height: zoomingPortal.isDiving ? '160vmax' : '40px',
-              opacity: zoomingPortal.isDiving ? 0.6 : 0,
-              boxShadow: '0 0 120px rgba(56,189,248,0.95), inset 0 0 90px rgba(56,189,248,0.7)',
-              transition: 'all 1.1s cubic-bezier(0.65, 0, 0.15, 1)',
-            }}
-          />
+            {/* Subtle Cinematic Vignette Framing */}
+            <div className="absolute inset-0 bg-gradient-to-t from-[#020512]/85 via-transparent to-[#020512]/35 pointer-events-none" />
 
-          {/* Heading overlay appearing during camera dive */}
-          <div
-            className="absolute z-20 font-mono text-sm tracking-[0.5em] uppercase text-cyan-300 font-bold"
-            style={{
-              opacity: zoomingPortal.isDiving ? 1 : 0,
-              transform: zoomingPortal.isDiving ? 'scale(1.1) translateY(-10px)' : 'scale(0.85) translateY(20px)',
-              transition: 'all 0.6s cubic-bezier(0.16, 1, 0.3, 1) 0.3s',
-            }}
-          >
-            ENTERING {zoomingPortal.title}...
+            {/* Metro-Inspired Thin Cyan Progress Bar Line at Bottom */}
+            <div className="absolute bottom-0 left-0 right-0 h-[2px] bg-cyan-400/20 pointer-events-none">
+              <div
+                className="h-full bg-gradient-to-r from-cyan-400 via-sky-300 to-cyan-400 origin-left"
+                style={{
+                  transform: zoomingPortal.stage === 'expanding' ? 'scaleX(1)' : 'scaleX(0)',
+                  transition:
+                    zoomingPortal.stage === 'expanding'
+                      ? 'transform 0.70s cubic-bezier(0.22, 1, 0.36, 1)'
+                      : 'none',
+                }}
+              />
+            </div>
           </div>
         </div>
       )}
