@@ -896,6 +896,7 @@ export default function CategoryShowcasePage({
   // Close modal smoothly
   const closeModal = useCallback(() => {
     setActiveModalProject(null);
+    wakeLoopRef.current();
   }, []);
 
   // Choreographed Grid <-> Slider transition with anchored focal photo, row dispersal & zoom
@@ -2169,27 +2170,49 @@ export default function CategoryShowcasePage({
                 className={`relative ${aspect.container} overflow-hidden rounded-2xl border border-cyan-500/40 bg-black shadow-[0_0_100px_rgba(0,0,0,0.95),0_0_50px_rgba(56,189,248,0.25)] flex flex-col`}
                 onClick={(e) => e.stopPropagation()}
               >
-                {/* Pure Cinema Video Player without any UI controls (Only Clean Full Video) */}
+                {/* Pure Cinema Video Player without any UI controls (100% Clean Full Video, Only X button) */}
                 <div
                   className={`relative w-full ${aspect.aspect} bg-black overflow-hidden flex items-center justify-center`}
                 >
-                  {activeModalProject.youtube_id || activeModalProject.video_url?.includes('youtube.com') || activeModalProject.video_url?.includes('youtu.be') ? (
-                    <iframe
-                      src={`https://www.youtube.com/embed/${activeModalProject.youtube_id || (activeModalProject.video_url?.includes('v=') ? activeModalProject.video_url.split('v=')[1]?.split('&')[0] : activeModalProject.video_url?.split('/').pop()?.split('?')[0])}?autoplay=1&controls=1&enablejsapi=1&rel=0&playsinline=1`}
-                      title={activeModalProject.title}
-                      className="w-full h-full border-0 pointer-events-auto"
-                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                      allowFullScreen
-                    />
-                  ) : activeModalProject.preview_video || activeModalProject.video_url?.endsWith('.mp4') ? (
+                  {activeModalProject.preview_video || (activeModalProject.video_url && !activeModalProject.video_url.includes('youtube.com') && !activeModalProject.video_url.includes('youtu.be')) ? (
                     <video
+                      key={`modal-video-${activeModalProject.id}`}
                       src={activeModalProject.preview_video || activeModalProject.video_url}
                       autoPlay
                       loop
                       playsInline
-                      controls
-                      className="w-full h-full object-cover"
+                      className="w-full h-full object-cover select-none cursor-pointer"
                       poster={activeModalProject.thumbnail}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        const v = e.currentTarget;
+                        if (v.paused) {
+                          v.play().catch(() => {});
+                        } else {
+                          v.pause();
+                        }
+                      }}
+                      ref={(v) => {
+                        if (v) {
+                          v.muted = false;
+                          v.volume = 1;
+                          const p = v.play();
+                          if (p !== undefined) {
+                            p.catch(() => {
+                              v.muted = true;
+                              v.play().catch(() => {});
+                            });
+                          }
+                        }
+                      }}
+                    />
+                  ) : activeModalProject.youtube_id || activeModalProject.video_url?.includes('youtube.com') || activeModalProject.video_url?.includes('youtu.be') ? (
+                    <iframe
+                      src={`https://www.youtube-nocookie.com/embed/${activeModalProject.youtube_id || (activeModalProject.video_url?.includes('v=') ? activeModalProject.video_url.split('v=')[1]?.split('&')[0] : activeModalProject.video_url?.split('/').pop()?.split('?')[0])}?autoplay=1&controls=0&modestbranding=1&rel=0&playsinline=1&showinfo=0&iv_load_policy=3&disablekb=1`}
+                      title={activeModalProject.title}
+                      className="w-full h-full border-0 pointer-events-auto"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                      allowFullScreen
                     />
                   ) : (
                     <img
