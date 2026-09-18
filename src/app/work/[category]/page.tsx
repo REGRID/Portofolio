@@ -83,17 +83,17 @@ function postYt(iframe: HTMLIFrameElement | null, func: string, args: (string | 
 // Infinite Canvas Repeating Unit Dimensions & Responsive Scales
 export function getTileSizeForWidth(vw: number) {
   if (vw < 640) return { tile: { w: 115, h: 158 }, slider: { w: 180, h: 248 } }; // Mobile (e.g. iPhone 375-430px) - expansive multi-row mosaic
-  if (vw < 840) return { tile: { w: 150, h: 206 }, slider: { w: 220, h: 303 } }; // Large mobile / Phablet / Mini tablet
-  if (vw < 1200) return { tile: { w: 190, h: 262 }, slider: { w: 270, h: 372 } }; // Tablet / Small laptop
-  return { tile: { w: 230, h: 317 }, slider: { w: 330, h: 454 } }; // Desktop expansive gallery
+  if (vw < 840) return { tile: { w: 160, h: 220 }, slider: { w: 230, h: 317 } }; // Large mobile / Phablet
+  if (vw < 1024) return { tile: { w: 210, h: 289 }, slider: { w: 290, h: 400 } }; // Tablet
+  return { tile: { w: 275, h: 378 }, slider: { w: 380, h: 523 } }; // Desktop standard (original size untouched)
 }
 
-const DEFAULT_TILE_WIDTH = 230;
-const DEFAULT_TILE_HEIGHT = 317;
+const DEFAULT_TILE_WIDTH = 275;
+const DEFAULT_TILE_HEIGHT = 378;
 const TILE_GAP = 0; // Seamless borderless mosaic (all footage touches edge-to-edge)
 
-const DEFAULT_SLIDER_CARD_WIDTH = 330;
-const DEFAULT_SLIDER_CARD_HEIGHT = 454; // Matched aspect ratio (0.727)
+const DEFAULT_SLIDER_CARD_WIDTH = 380;
+const DEFAULT_SLIDER_CARD_HEIGHT = 523; // Matched aspect ratio (0.726)
 const SLIDER_CARD_GAP = 0; // Seamless continuous filmstrip
 
 const BLOCK_X_OFFSETS = [0, 1];
