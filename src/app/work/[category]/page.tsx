@@ -232,6 +232,9 @@ export default function CategoryShowcasePage({
   const viewModeRef = useRef(viewMode);
   viewModeRef.current = viewMode;
   const sliderHasScrolledRef = useRef(false);
+  const isFlingingRef = useRef(false);
+  const wasFlingingRef = useRef(false);
+  const pointerHistoryRef = useRef<Array<{ x: number; y: number; time: number }>>([]);
 
   // Cached parallax tiles & color overlay elements for zero-lookup 60-120 FPS proximity fade
   interface CachedTile {
@@ -668,21 +671,34 @@ export default function CategoryShowcasePage({
         return;
       }
 
+      const dx = targetPanRef.current.x - currentPanRef.current.x;
+      const dy = targetPanRef.current.y - currentPanRef.current.y;
+      const remDist = Math.hypot(dx, dy);
+
+      const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
+
       if (isDraggingRef.current) {
-        // Active pointer drag: instantaneous, agile tracking with zero perceived lag
-        chaseEase = 0.28;
+        // Active pointer drag: instantaneous, 1:1 agile tracking with zero perceived lag
+        chaseEase = isMobile ? 0.48 : 0.28;
       } else if (isWheelingRef.current) {
         // Active wheel scrolling: light, fluid, highly responsive
         chaseEase = 0.22;
+      } else if (isFlingingRef.current) {
+        // Ultra-slippery ("sangat licin") momentum coasting on mobile flick/swipe
+        // When far away: ease is ~0.065 (long, silky, frictionless ice glide across multiple cards)
+        // As it nears destination: ease smoothly increases to ~0.18 for a gentle, magnetic landing
+        const activeStride = viewMode === 'slider' ? SLIDER_STRIDE : STEP_X;
+        const dockT = Math.max(0, Math.min(1, (remDist - 25) / (activeStride * 2.5)));
+        chaseEase = 0.18 - 0.115 * dockT;
+        if (remDist < 1.0) {
+          isFlingingRef.current = false;
+        }
       } else {
         // Snappy, authoritative docking into exact card center
         velocityRef.current.vx *= 0.90;
         velocityRef.current.vy *= 0.90;
-        chaseEase = 0.24;
+        chaseEase = isMobile ? 0.18 : 0.24;
       }
-
-      const dx = targetPanRef.current.x - currentPanRef.current.x;
-      const dy = targetPanRef.current.y - currentPanRef.current.y;
 
       currentPanRef.current.x += dx * chaseEase;
       currentPanRef.current.y += dy * chaseEase;
@@ -690,6 +706,7 @@ export default function CategoryShowcasePage({
       const isSettled =
         !isDraggingRef.current &&
         !isWheelingRef.current &&
+        !isFlingingRef.current &&
         Math.abs(dx) < 0.08 &&
         Math.abs(dy) < 0.08;
 
@@ -1499,6 +1516,10 @@ export default function CategoryShowcasePage({
       if (target && target.closest('header, button, nav, a, [role="button"]')) {
         return;
       }
+      // If already gliding fast, catch it immediately without jumping
+      wasFlingingRef.current = isFlingingRef.current;
+      isFlingingRef.current = false;
+
       isDraggingRef.current = true;
       isWheelingRef.current = false;
       dragIntentActiveRef.current = true;
@@ -1519,11 +1540,13 @@ export default function CategoryShowcasePage({
       targetPanRef.current.x = currentPanRef.current.x;
       targetPanRef.current.y = currentPanRef.current.y;
 
+      const now = performance.now();
       lastPointerRef.current = {
         x: e.clientX,
         y: e.clientY,
-        time: performance.now(),
+        time: now,
       };
+      pointerHistoryRef.current = [{ x: e.clientX, y: e.clientY, time: now }];
       velocityRef.current = { vx: 0, vy: 0 };
       wakeLoopRef.current();
     };
@@ -1540,12 +1563,21 @@ export default function CategoryShowcasePage({
       const stepDx = e.clientX - lastPointerRef.current.x;
       const stepDy = e.clientY - lastPointerRef.current.y;
 
-      // Smoothed velocity vector using exponential moving average
+      // Append to FIFO history for rock-solid flick velocity calculation
+      pointerHistoryRef.current.push({ x: e.clientX, y: e.clientY, time: now });
+      if (pointerHistoryRef.current.length > 8) {
+        pointerHistoryRef.current.shift();
+      }
+      pointerHistoryRef.current = pointerHistoryRef.current.filter(
+        (p) => now - p.time <= 140
+      );
+
+      // Smoothed velocity vector for immediate visual feedback
       const rawVx = stepDx / dt;
       const rawVy = stepDy / dt;
       velocityRef.current = {
-        vx: velocityRef.current.vx * 0.7 + rawVx * 0.3,
-        vy: velocityRef.current.vy * 0.7 + rawVy * 0.3,
+        vx: velocityRef.current.vx * 0.5 + rawVx * 0.5,
+        vy: velocityRef.current.vy * 0.5 + rawVy * 0.5,
       };
 
       const distFromStart = Math.hypot(
@@ -1571,12 +1603,56 @@ export default function CategoryShowcasePage({
       isDraggingRef.current = false;
       dragIntentActiveRef.current = false;
 
-      // Smooth inertia fling with momentum (up to 3 cards distance based on flick velocity)
-      const maxFling = viewMode === 'slider' ? SLIDER_STRIDE * 3 : STEP_X * 3;
-      const flingX = Math.max(-maxFling, Math.min(maxFling, velocityRef.current.vx * 150));
-      const flingY = Math.max(-STEP_Y * 3, Math.min(STEP_Y * 3, velocityRef.current.vy * 150));
-      const projectedX = currentPanRef.current.x + flingX;
-      const projectedY = currentPanRef.current.y + flingY;
+      const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
+      const strideX = viewMode === 'slider' ? SLIDER_STRIDE : STEP_X;
+      const strideY = STEP_Y;
+
+      // Compute weighted velocity from pointer history over the last ~100ms
+      const history = pointerHistoryRef.current;
+      let computedVx = velocityRef.current.vx;
+      let computedVy = velocityRef.current.vy;
+
+      if (history.length >= 2) {
+        const oldest = history[0];
+        const newest = history[history.length - 1];
+        const totalDt = Math.max(10, newest.time - oldest.time);
+        computedVx = (newest.x - oldest.x) / totalDt;
+        computedVy = (newest.y - oldest.y) / totalDt;
+      }
+
+      // If finger was held stationary right before lifting, cancel velocity
+      const timeSinceLastMove = performance.now() - lastPointerRef.current.time;
+      if (timeSinceLastMove > 90) {
+        computedVx = 0;
+        computedVy = 0;
+      }
+
+      const speed = Math.hypot(computedVx, computedVy);
+
+      let projectedX = currentPanRef.current.x;
+      let projectedY = currentPanRef.current.y;
+
+      if (speed > 0.18) {
+        // High-velocity flick momentum: very slippery ("sangat licin"), glides across multiple cards
+        isFlingingRef.current = true;
+
+        // Dynamic multiplier: faster flick = longer effortless glide ("bergulir seiringan")
+        const multiplier = isMobile
+          ? 340 + Math.min(180, speed * 70)
+          : 220 + Math.min(100, speed * 40);
+
+        const maxCards = isMobile ? 12 : 5;
+        const maxFlingX = strideX * maxCards;
+        const maxFlingY = strideY * maxCards;
+
+        const flingX = Math.max(-maxFlingX, Math.min(maxFlingX, computedVx * multiplier));
+        const flingY = Math.max(-maxFlingY, Math.min(maxFlingY, computedVy * multiplier));
+
+        projectedX = currentPanRef.current.x + flingX;
+        projectedY = currentPanRef.current.y + flingY;
+      } else {
+        isFlingingRef.current = false;
+      }
 
       // Always snap crisply and authoritatively to the nearest card
       const snap = getSnapCoordinates(projectedX, projectedY, viewMode);
@@ -1586,6 +1662,11 @@ export default function CategoryShowcasePage({
       }
       saveStateToStorage(viewMode, snap.x, viewMode === 'grid' ? snap.y : 0);
       wakeLoopRef.current();
+
+      // Clear wasFlinging after click event could have fired (100ms)
+      setTimeout(() => {
+        wasFlingingRef.current = false;
+      }, 100);
     };
 
     const onPointerLeave = () => {};
@@ -1632,6 +1713,7 @@ export default function CategoryShowcasePage({
     container.addEventListener('pointerdown', onPointerDown, { passive: true });
     window.addEventListener('pointermove', onPointerMove, { passive: true });
     window.addEventListener('pointerup', onPointerUp, { passive: true });
+    window.addEventListener('pointercancel', onPointerUp, { passive: true });
     container.addEventListener('pointerleave', onPointerLeave, { passive: true });
     container.addEventListener('wheel', onWheel, { passive: false });
 
@@ -1639,6 +1721,7 @@ export default function CategoryShowcasePage({
       container.removeEventListener('pointerdown', onPointerDown);
       window.removeEventListener('pointermove', onPointerMove);
       window.removeEventListener('pointerup', onPointerUp);
+      window.removeEventListener('pointercancel', onPointerUp);
       container.removeEventListener('pointerleave', onPointerLeave);
       container.removeEventListener('wheel', onWheel);
       if (wheelSnapTimeoutRef.current) clearTimeout(wheelSnapTimeoutRef.current);
@@ -1652,8 +1735,13 @@ export default function CategoryShowcasePage({
     project: CategoryProject,
     cardId?: string
   ) => {
-    if (isTransitioningRef.current || dragDistanceRef.current > 10 || dragIntentActiveRef.current) {
-      // Drag move or transition in progress, don't trigger click action
+    if (
+      isTransitioningRef.current ||
+      dragDistanceRef.current > 10 ||
+      dragIntentActiveRef.current ||
+      wasFlingingRef.current
+    ) {
+      // Drag move, transition, or stopping a fast glide: don't trigger click action
       return;
     }
 
