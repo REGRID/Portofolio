@@ -82,18 +82,18 @@ function postYt(iframe: HTMLIFrameElement | null, func: string, args: (string | 
 
 // Infinite Canvas Repeating Unit Dimensions & Responsive Scales
 export function getTileSizeForWidth(vw: number) {
-  if (vw < 480) return { tile: { w: 260, h: 358 }, slider: { w: 300, h: 413 } }; // Small mobile (e.g. iPhone SE 375px)
-  if (vw < 768) return { tile: { w: 300, h: 413 }, slider: { w: 340, h: 468 } }; // Large mobile / Phablet
-  if (vw < 1024) return { tile: { w: 320, h: 440 }, slider: { w: 400, h: 551 } }; // Tablet
-  return { tile: { w: 345, h: 475 }, slider: { w: 450, h: 620 } }; // Desktop standard
+  if (vw < 480) return { tile: { w: 165, h: 228 }, slider: { w: 225, h: 310 } }; // Small mobile (e.g. iPhone 375-430px) - expansive 3x3 mosaic
+  if (vw < 768) return { tile: { w: 195, h: 268 }, slider: { w: 265, h: 365 } }; // Large mobile / Phablet
+  if (vw < 1024) return { tile: { w: 235, h: 324 }, slider: { w: 320, h: 440 } }; // Tablet
+  return { tile: { w: 275, h: 378 }, slider: { w: 380, h: 523 } }; // Desktop standard
 }
 
-const DEFAULT_TILE_WIDTH = 345;
-const DEFAULT_TILE_HEIGHT = 475;
+const DEFAULT_TILE_WIDTH = 275;
+const DEFAULT_TILE_HEIGHT = 378;
 const TILE_GAP = 0; // Seamless borderless mosaic (all footage touches edge-to-edge)
 
-const DEFAULT_SLIDER_CARD_WIDTH = 450;
-const DEFAULT_SLIDER_CARD_HEIGHT = 620; // Matched aspect ratio (0.726)
+const DEFAULT_SLIDER_CARD_WIDTH = 380;
+const DEFAULT_SLIDER_CARD_HEIGHT = 523; // Matched aspect ratio (0.726)
 const SLIDER_CARD_GAP = 0; // Seamless continuous filmstrip
 
 const BLOCK_X_OFFSETS = [0, 1];
@@ -164,7 +164,18 @@ export default function CategoryShowcasePage({
   );
 
   useEffect(() => {
-    const onResize = () => setTileSizes(getTileSizeForWidth(window.innerWidth));
+    const onResize = () => {
+      const newSizes = getTileSizeForWidth(window.innerWidth);
+      setTileSizes(newSizes);
+      const snap = getSnapCoordinates(
+        targetPanRef.current.x,
+        targetPanRef.current.y,
+        viewModeRef.current,
+        newSizes
+      );
+      targetPanRef.current = snap;
+      wakeLoopRef.current();
+    };
     window.addEventListener('resize', onResize);
     return () => window.removeEventListener('resize', onResize);
   }, []);
@@ -557,12 +568,17 @@ export default function CategoryShowcasePage({
   // Synchronously compute client resting coordinates on mount BEFORE browser paint so the canvas never jumps on refresh
   useIsomorphicLayoutEffect(() => {
     if (typeof window === 'undefined') return;
+    const currentSizes = getTileSizeForWidth(window.innerWidth);
+    setTileSizes(currentSizes);
+
     const scX = window.innerWidth / 2;
     const scY = window.innerHeight / 2;
+    const tW = currentSizes.tile.w;
+    const tH = currentSizes.tile.h;
 
     // Strictly center Card #1 (col=0, row=0, bx=0, by=0) in the viewport by default
-    let targetX = scX - TILE_WIDTH / 2;
-    let targetY = scY - TILE_HEIGHT / 2;
+    let targetX = scX - tW / 2;
+    let targetY = scY - tH / 2;
 
     try {
       const urlParams = new URLSearchParams(window.location.search);
@@ -571,27 +587,33 @@ export default function CategoryShowcasePage({
 
       if (mode === 'slider') {
         const focalIdx = 0;
-        const rawTargetX = scX - SLIDER_CARD_WIDTH / 2 - focalIdx * SLIDER_STRIDE;
-        targetX = wrapRange(rawTargetX, sliderBlockWidth);
+        const sW = currentSizes.slider.w;
+        const sStride = sW + SLIDER_CARD_GAP;
+        const rawTargetX = scX - sW / 2 - focalIdx * sStride;
+        targetX = wrapRange(rawTargetX, N * sStride);
         targetY = 0;
       }
     } catch {}
 
-    targetPanRef.current = { x: targetX, y: targetY };
-    currentPanRef.current = { x: targetX, y: targetY };
-    pointerStartRef.current.panX = targetX;
-    pointerStartRef.current.panY = targetY;
+    const snap = getSnapCoordinates(targetX, targetY, viewModeRef.current, currentSizes);
+    targetPanRef.current = snap;
+    currentPanRef.current = snap;
+    pointerStartRef.current.panX = snap.x;
+    pointerStartRef.current.panY = snap.y;
 
     if (canvasRef.current) {
+      const bW = GRID_COLS * (tW + TILE_GAP);
+      const bH = GRID_ROWS * (tH + TILE_GAP);
       const wx =
         viewModeRef.current === 'grid'
-          ? wrapRange(targetX, BLOCK_WIDTH)
-          : wrapRange(targetX, sliderBlockWidth);
+          ? wrapRange(snap.x, bW)
+          : wrapRange(snap.x, sliderBlockWidth);
       const wy =
-        viewModeRef.current === 'grid' ? wrapRange(targetY, BLOCK_HEIGHT) : 0;
+        viewModeRef.current === 'grid' ? wrapRange(snap.y, bH) : 0;
       canvasRef.current.style.transform = `translate3d(${wx.toFixed(3)}px, ${wy.toFixed(3)}px, 0)`;
     }
-  }, [categoryKey, sliderBlockWidth, BLOCK_WIDTH, BLOCK_HEIGHT]);
+    wakeLoopRef.current();
+  }, [categoryKey, sliderBlockWidth, BLOCK_WIDTH, BLOCK_HEIGHT, TILE_WIDTH, TILE_HEIGHT, SLIDER_CARD_WIDTH, SLIDER_STRIDE, N]);
 
   // Smooth entrance readiness on mount and window resize handling
   useEffect(() => {
@@ -628,21 +650,7 @@ export default function CategoryShowcasePage({
         viewModeRef.current = targetMode;
       }
     } catch {}
-
-    const handleResize = () => {
-      const snap = getSnapCoordinates(
-        targetPanRef.current.x,
-        targetPanRef.current.y,
-        viewModeRef.current
-      );
-      targetPanRef.current = snap;
-      saveStateToStorage(viewModeRef.current, snap.x, snap.y);
-      wakeLoopRef.current();
-    };
-
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, [categoryKey, saveStateToStorage]);
+  }, [categoryKey]);
 
   // High-performance 60-120 FPS hardware-accelerated RAF Lerp loop with intelligent idle sleeping
   useEffect(() => {
@@ -813,7 +821,8 @@ export default function CategoryShowcasePage({
 
         // Live Video Auto-Play with Audio Fade-In (ONLY when card is in the exact center!)
         const centerTile = closestIdx !== -1 ? tiles[closestIdx] : null;
-        const isAtColoredPoint = Boolean(centerTile && minDist < 70);
+        const centerTolerance = Math.min(65, TILE_WIDTH * 0.38);
+        const isAtColoredPoint = Boolean(centerTile && minDist < centerTolerance);
 
         if (
           !activeModalProjectRef.current &&
@@ -1657,7 +1666,8 @@ export default function CategoryShowcasePage({
             ? Math.abs(cardCenterX - scX)
             : Math.hypot(cardCenterX - scX, cardCenterY - scY);
 
-        if (dist >= 70) {
+        const centerTolerance = Math.min(65, TILE_WIDTH * 0.38);
+        if (dist >= centerTolerance) {
           // Card is outside the center colored point: shift screen so this card becomes center
           const moveX = scX - cardCenterX;
           const moveY = scY - cardCenterY;
