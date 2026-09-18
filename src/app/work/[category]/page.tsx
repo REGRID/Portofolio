@@ -676,28 +676,28 @@ export default function CategoryShowcasePage({
       const remDist = Math.hypot(dx, dy);
 
       const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
+      const isSlider = viewMode === 'slider';
 
       if (isDraggingRef.current) {
-        // Active pointer drag: instantaneous, 1:1 agile tracking with zero perceived lag
-        chaseEase = isMobile ? 0.48 : 0.28;
+        // Active pointer drag: smooth agile finger tracking
+        chaseEase = isMobile ? 0.38 : 0.26;
       } else if (isWheelingRef.current) {
-        // Active wheel scrolling: light, fluid, highly responsive
-        chaseEase = 0.22;
+        // Active wheel scrolling: soft, fluid glide
+        chaseEase = 0.12;
       } else if (isFlingingRef.current) {
-        // Ultra-slippery ("sangat licin") momentum coasting on mobile flick/swipe
-        // When far away: ease is ~0.065 (long, silky, frictionless ice glide across multiple cards)
-        // As it nears destination: ease smoothly increases to ~0.18 for a gentle, magnetic landing
-        const activeStride = viewMode === 'slider' ? SLIDER_STRIDE : STEP_X;
-        const dockT = Math.max(0, Math.min(1, (remDist - 25) / (activeStride * 2.5)));
-        chaseEase = 0.18 - 0.115 * dockT;
-        if (remDist < 1.0) {
+        // Ultra-soft, luxurious momentum coasting ("sangat lembut & licin")
+        // Starts with silky glide (~0.05) and gently eases up to ~0.11 as it nears docking
+        const activeStride = isSlider ? SLIDER_STRIDE : STEP_X;
+        const dockT = Math.max(0, Math.min(1, (remDist - 20) / (activeStride * 2.5)));
+        chaseEase = 0.11 - 0.06 * dockT;
+        if (remDist < 0.6) {
           isFlingingRef.current = false;
         }
       } else {
-        // Snappy, authoritative docking into exact card center
-        velocityRef.current.vx *= 0.90;
-        velocityRef.current.vy *= 0.90;
-        chaseEase = isMobile ? 0.18 : 0.24;
+        // Silky, cushioned docking into exact card center ("sangat lembut")
+        velocityRef.current.vx *= 0.92;
+        velocityRef.current.vy *= 0.92;
+        chaseEase = isSlider ? 0.085 : (isMobile ? 0.095 : 0.12);
       }
 
       currentPanRef.current.x += dx * chaseEase;
@@ -707,8 +707,8 @@ export default function CategoryShowcasePage({
         !isDraggingRef.current &&
         !isWheelingRef.current &&
         !isFlingingRef.current &&
-        Math.abs(dx) < 0.08 &&
-        Math.abs(dy) < 0.08;
+        Math.abs(dx) < 0.05 &&
+        Math.abs(dy) < 0.05;
 
       // Lock subpixel precision when settled to eliminate micro-jitter
       if (isSettled) {
@@ -1124,8 +1124,8 @@ export default function CategoryShowcasePage({
           {
             y: 0,
             opacity: 1,
-            duration: 1.05,
-            ease: 'power2.inOut',
+            duration: 1.15,
+            ease: 'power3.inOut',
           },
           0
         );
@@ -1137,8 +1137,8 @@ export default function CategoryShowcasePage({
           {
             y: 0,
             opacity: 1,
-            duration: 1.05,
-            ease: 'power2.inOut',
+            duration: 1.15,
+            ease: 'power3.inOut',
           },
           0
         );
@@ -1152,8 +1152,8 @@ export default function CategoryShowcasePage({
             y: 0,
             scaleX: 1,
             scaleY: 1,
-            duration: 1.15,
-            ease: 'power2.inOut',
+            duration: 1.18,
+            ease: 'power3.inOut',
           },
           0
         );
@@ -1375,8 +1375,8 @@ export default function CategoryShowcasePage({
           {
             y: Math.min(-380, focalMoveY - 320),
             opacity: 0,
-            duration: 0.72,
-            ease: 'power2.inOut',
+            duration: 0.90,
+            ease: 'power3.inOut',
           },
           0
         );
@@ -1389,8 +1389,8 @@ export default function CategoryShowcasePage({
           {
             y: Math.max(380, focalMoveY + 320),
             opacity: 0,
-            duration: 0.72,
-            ease: 'power2.inOut',
+            duration: 0.90,
+            ease: 'power3.inOut',
           },
           0
         );
@@ -1402,7 +1402,7 @@ export default function CategoryShowcasePage({
           otherEls,
           {
             opacity: 0,
-            duration: 0.45,
+            duration: 0.55,
             ease: 'power2.out',
           },
           0
@@ -1425,8 +1425,8 @@ export default function CategoryShowcasePage({
             scaleX: scaleX,
             scaleY: scaleY,
             transformOrigin: 'center center',
-            duration: 0.75,
-            ease: 'power2.inOut',
+            duration: 0.92,
+            ease: 'power3.inOut',
           },
           0
         );
