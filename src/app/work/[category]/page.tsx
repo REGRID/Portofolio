@@ -158,10 +158,11 @@ export default function CategoryShowcasePage({
   const categoryKey = resolvedParams.category?.toLowerCase();
   const category = CATEGORY_DATA[categoryKey];
 
-  // Dynamic responsive sizing hook: recalibrates tiles on mobile screens
-  const [tileSizes, setTileSizes] = useState(() =>
-    getTileSizeForWidth(typeof window !== 'undefined' ? window.innerWidth : 1440)
-  );
+  // Dynamic responsive sizing hook: stable default dimensions across SSR and initial render to eliminate hydration mismatch
+  const [tileSizes, setTileSizes] = useState({
+    tile: { w: DEFAULT_TILE_WIDTH, h: DEFAULT_TILE_HEIGHT },
+    slider: { w: DEFAULT_SLIDER_CARD_WIDTH, h: DEFAULT_SLIDER_CARD_HEIGHT },
+  });
 
   useEffect(() => {
     const onResize = () => {
@@ -1819,6 +1820,7 @@ export default function CategoryShowcasePage({
             BLOCK_X_OFFSETS.map((bx) => (
               <div
                 key={`grid_block_${bx}_${by}`}
+                suppressHydrationWarning
                 className="absolute"
                 style={{
                   left: `${bx * BLOCK_WIDTH}px`,
@@ -1834,31 +1836,15 @@ export default function CategoryShowcasePage({
                     if (!project) return null;
 
                     const isCenterTile = bx === 0 && by === 0 && row === 0 && col === 0;
-                    let initialGridOpacity = isCenterTile ? 1 : 0;
-                    let initialGridPx = 0;
-                    let initialGridPy = 0;
-                    if (typeof window !== 'undefined') {
-                      const scX = window.innerWidth / 2;
-                      const scY = window.innerHeight / 2;
-                      const curWx = wrapRange(currentPanRef.current.x, BLOCK_WIDTH);
-                      const curWy = wrapRange(currentPanRef.current.y, BLOCK_HEIGHT);
-                      const localX = bx * BLOCK_WIDTH + col * STEP_X;
-                      const localY = by * BLOCK_HEIGHT + row * STEP_Y;
-                      const cardCenterX = localX + curWx + TILE_WIDTH / 2;
-                      const cardCenterY = localY + curWy + TILE_HEIGHT / 2;
-                      const dist = Math.hypot(cardCenterX - scX, cardCenterY - scY);
-                      const centerDist = Math.min(70, TILE_WIDTH * 0.38);
-                      initialGridOpacity = dist < centerDist ? 1 : 0;
-                      const normX = (cardCenterX - scX) / scX;
-                      const normY = (cardCenterY - scY) / scY;
-                      initialGridPx = Math.max(-28, Math.min(28, -normX * 18));
-                      initialGridPy = Math.max(-32, Math.min(32, -normY * 20));
-                    }
+                    const initialGridOpacity = isCenterTile ? 1 : 0;
+                    const initialGridPx = 0;
+                    const initialGridPy = 0;
 
                     return (
                       <div
                         id={`grid_card_${bx}_${by}_${row}_${col}`}
                         key={`grid_card_${bx}_${by}_${row}_${col}_${project.id}`}
+                        suppressHydrationWarning
                         onClick={(e) =>
                           handleProjectClick(
                             e,
@@ -1945,6 +1931,7 @@ export default function CategoryShowcasePage({
           {SLIDER_OFFSETS.map((so) => (
             <div
               key={`slider_block_${so}`}
+              suppressHydrationWarning
               className="absolute inset-y-0 h-full flex items-center select-none"
               style={{
                 left: `${so * sliderBlockWidth}px`,
@@ -1953,26 +1940,15 @@ export default function CategoryShowcasePage({
             >
               {displayProjects.map((project, idx) => {
                 const isCenterSlider = so === 0 && idx === 0;
-                let initialPx = 0;
-                let initialOpacity = 0;
-                if (isReady && typeof window !== 'undefined') {
-                  const scX = window.innerWidth / 2;
-                  const curWx = wrapRange(currentPanRef.current.x, sliderBlockWidth);
-                  const localX = so * sliderBlockWidth + idx * SLIDER_STRIDE;
-                  const screenX = localX + curWx;
-                  const cardCenterX = screenX + SLIDER_CARD_WIDTH / 2;
-                  const dist = Math.abs(cardCenterX - scX);
-                  const centerDist = Math.min(70, SLIDER_CARD_WIDTH * 0.38);
-                  initialOpacity = dist < centerDist ? 1 : 0;
-                  const normX = (cardCenterX - scX) / scX;
-                  initialPx = Math.max(-28, Math.min(28, -normX * 18));
-                }
+                const initialPx = 0;
+                const initialOpacity = isCenterSlider ? 1 : 0;
 
                 return (
                   <div
                     id={`slider_card_${so}_${idx}`}
                     key={`slider_card_${so}_${project.id}_${idx}`}
                     data-flip-id={so === 0 ? `card-${project.id}` : undefined}
+                    suppressHydrationWarning
                     onClick={(e) =>
                       handleProjectClick(e, project, `slider_card_${so}_${idx}`)
                     }
