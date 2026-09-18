@@ -1989,10 +1989,6 @@ export default function CategoryShowcasePage({
                                 className="w-full h-full min-w-full min-h-full object-cover pointer-events-none"
                                 style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                               />
-                              <div className="card-audio-indicator absolute bottom-4 right-4 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/80 backdrop-blur-md border border-cyan-400/50 text-[9px] font-mono text-cyan-300 opacity-0 transition-opacity duration-300 shadow-[0_0_15px_rgba(56,189,248,0.4)]">
-                                <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
-                                <span className="tracking-widest font-bold">AUDIO ON</span>
-                              </div>
                             </div>
                           ) : null}
                         </div>
@@ -2087,10 +2083,6 @@ export default function CategoryShowcasePage({
                             className="w-full h-full min-w-full min-h-full object-cover pointer-events-none"
                             style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                           />
-                          <div className="card-audio-indicator absolute bottom-4 right-4 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/80 backdrop-blur-md border border-cyan-400/50 text-[9px] font-mono text-cyan-300 opacity-0 transition-opacity duration-300 shadow-[0_0_15px_rgba(56,189,248,0.4)]">
-                            <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-pulse" />
-                            <span className="tracking-widest font-bold">AUDIO ON</span>
-                          </div>
                         </div>
                       ) : null}
                     </div>
