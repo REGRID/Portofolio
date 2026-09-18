@@ -813,19 +813,27 @@ export default function CategoryShowcasePage({
           }
         }
 
-        // Second pass: continuous radial proximity color gradient based on distance to viewport center
+        // Allowance for other (non-closest) cards:
+        // When 1 card is centered (minDist <= 55px): otherCardAllowance = 0.0 -> ONLY 1 card is colored (NO radial mask)!
+        // When panning/sliding between cards: otherCardAllowance opens smoothly so incoming card reveals its color
+        const tAllowance = Math.max(0, Math.min(1, (minDist - 55) / 150));
+        const otherCardAllowance = tAllowance * tAllowance * (3 - 2 * tAllowance);
+
+        // Second pass: apply proximity color with center isolation
         for (let i = 0; i < tileCount; i++) {
           const tile = tiles[i];
           if (!tile.visible || tile.dist === undefined) continue;
 
           const dist = tile.dist;
-          let finalFactor = 0;
+          let baseFactor = 0;
           if (dist <= r0) {
-            finalFactor = 1.0;
+            baseFactor = 1.0;
           } else if (dist < r1) {
             const t = (dist - r0) / rDiff;
-            finalFactor = 0.5 * (1 + Math.cos(t * Math.PI));
+            baseFactor = 0.5 * (1 + Math.cos(t * Math.PI));
           }
+
+          const finalFactor = i === closestIdx ? baseFactor : baseFactor * otherCardAllowance;
 
           if (
             tile.lastOpacity === undefined ||
@@ -967,6 +975,9 @@ export default function CategoryShowcasePage({
         }
       }
 
+      const tAllowance = Math.max(0, Math.min(1, (minDist - 55) / 150));
+      const otherCardAllowance = tAllowance * tAllowance * (3 - 2 * tAllowance);
+
       for (let i = 0; i < tiles.length; i++) {
         const tile = tiles[i];
         if (tile.dist === undefined) continue;
@@ -975,12 +986,13 @@ export default function CategoryShowcasePage({
         const r0 = Math.min(65, activeCardWidth * 0.38);
         const r1 = Math.min(500, activeCardWidth * 2.2);
         const rDiff = r1 - r0;
-        let finalFactor = 0;
-        if (dist <= r0) finalFactor = 1.0;
+        let baseFactor = 0;
+        if (dist <= r0) baseFactor = 1.0;
         else if (dist < r1) {
           const t = (dist - r0) / rDiff;
-          finalFactor = 0.5 * (1 + Math.cos(t * Math.PI));
+          baseFactor = 0.5 * (1 + Math.cos(t * Math.PI));
         }
+        const finalFactor = i === closestIdx ? baseFactor : baseFactor * otherCardAllowance;
         tile.colorOverlayEl.style.opacity = finalFactor.toFixed(3);
         tile.lastOpacity = finalFactor;
       }
@@ -1100,17 +1112,9 @@ export default function CategoryShowcasePage({
             const cardCenterX = screenX + tile.width / 2;
             const cardCenterY = screenY + tile.height / 2;
             const dist = Math.hypot(cardCenterX - scX, cardCenterY - scY);
-            const r0 = Math.min(65, TILE_WIDTH * 0.38);
-            const r1 = Math.min(500, TILE_WIDTH * 2.2);
-            const rDiff = r1 - r0;
-            let finalFactor = 0;
-            if (dist <= r0) finalFactor = 1.0;
-            else if (dist < r1) {
-              const t = (dist - r0) / rDiff;
-              finalFactor = 0.5 * (1 + Math.cos(t * Math.PI));
-            }
-            tile.colorOverlayEl.style.opacity = finalFactor.toFixed(3);
-            tile.lastOpacity = finalFactor;
+            const centerDist = Math.min(70, TILE_WIDTH * 0.38);
+            tile.colorOverlayEl.style.opacity = dist < centerDist ? '1' : '0';
+            tile.lastOpacity = dist < centerDist ? 1 : 0;
             const normX = (cardCenterX - scX) / scX;
             const normY = (cardCenterY - scY) / scY;
             const px = Math.max(-28, Math.min(28, -normX * 18));
@@ -1190,17 +1194,10 @@ export default function CategoryShowcasePage({
         const screenX = tile.localX + curWx;
         const cardCenterX = screenX + tile.width / 2;
         const dist = Math.abs(cardCenterX - scX);
-        const r0 = Math.min(65, SLIDER_CARD_WIDTH * 0.38);
-        const r1 = Math.min(500, SLIDER_CARD_WIDTH * 2.2);
-        const rDiff = r1 - r0;
-        let finalFactor = 0;
-        if (dist <= r0) finalFactor = 1.0;
-        else if (dist < r1) {
-          const t = (dist - r0) / rDiff;
-          finalFactor = 0.5 * (1 + Math.cos(t * Math.PI));
-        }
-        tile.colorOverlayEl.style.opacity = finalFactor.toFixed(3);
-        tile.lastOpacity = finalFactor;
+        const centerDist = Math.min(70, SLIDER_CARD_WIDTH * 0.38);
+        const finalOpacity = dist < centerDist ? 1 : 0;
+        tile.colorOverlayEl.style.opacity = String(finalOpacity);
+        tile.lastOpacity = finalOpacity;
         const normX = (cardCenterX - scX) / scX;
         const px = Math.max(-28, Math.min(28, -normX * 18));
         tile.wrapperEl.style.transform = `scale(1.22) translate3d(${px.toFixed(1)}px, 0px, 0px)`;
