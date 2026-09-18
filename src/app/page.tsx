@@ -637,12 +637,12 @@ export default function PortfolioPage() {
       <div className="fixed inset-0 pointer-events-none -z-10 bg-[radial-gradient(ellipse_80%_60%_at_50%_35%,rgba(14,45,95,0.45)_0%,transparent_100%)]" />
 
       {/* 1. PERSISTENT MINIMALIST GLOBAL HEADER (1:1 with Simon Sparks) */}
-      <header className="fixed top-0 left-0 right-0 z-50 pt-4 sm:pt-6 pb-2 px-4 sm:px-8 md:px-12 pointer-events-auto select-none safe-pt">
+      <header className="fixed top-0 left-0 right-0 z-50 pt-[max(1.25rem,calc(env(safe-area-inset-top)+0.65rem))] pb-2 px-3 sm:px-8 md:px-12 pointer-events-auto select-none safe-pt">
         <nav className="w-full max-w-4xl lg:max-w-5xl mx-auto flex items-center justify-between">
           {/* ABOUT (Point 1) */}
           <button
             onClick={() => handlePageClick(0)}
-            className={`min-h-[44px] inline-flex items-center px-2 text-[11px] sm:text-[12px] md:text-[13px] font-sans font-bold tracking-[0.22em] uppercase transition-all duration-300 cursor-pointer ${
+            className={`min-h-[44px] inline-flex items-center px-1.5 sm:px-2 text-[10px] sm:text-[12px] md:text-[13px] font-sans font-bold tracking-[0.14em] sm:tracking-[0.22em] uppercase transition-all duration-300 cursor-pointer ${
               activePageIndex === 0 ? "text-[#f3bd8b] drop-shadow-[0_0_8px_rgba(243,189,139,0.5)]" : "text-[#abc8e6] hover:text-white"
             }`}
           >
@@ -650,12 +650,12 @@ export default function PortfolioPage() {
           </button>
 
           {/* Dot 1 */}
-          <span className="w-1.5 h-1.5 rounded-full bg-[#1c5285] select-none pointer-events-none" />
+          <span className="w-1 sm:w-1.5 h-1 sm:h-1.5 rounded-full bg-[#1c5285] select-none pointer-events-none" />
 
           {/* WORK (Point 2) */}
           <button
             onClick={() => handlePageClick(1)}
-            className={`min-h-[44px] inline-flex items-center px-2 text-[11px] sm:text-[12px] md:text-[13px] font-sans font-bold tracking-[0.22em] uppercase transition-all duration-300 cursor-pointer ${
+            className={`min-h-[44px] inline-flex items-center px-1.5 sm:px-2 text-[10px] sm:text-[12px] md:text-[13px] font-sans font-bold tracking-[0.14em] sm:tracking-[0.22em] uppercase transition-all duration-300 cursor-pointer ${
               activePageIndex === 1 ? "text-[#f3bd8b] drop-shadow-[0_0_8px_rgba(243,189,139,0.5)]" : "text-[#abc8e6] hover:text-white"
             }`}
           >
@@ -663,7 +663,7 @@ export default function PortfolioPage() {
           </button>
 
           {/* Dot 2 */}
-          <span className="w-1.5 h-1.5 rounded-full bg-[#1c5285] select-none pointer-events-none" />
+          <span className="w-1 sm:w-1.5 h-1 sm:h-1.5 rounded-full bg-[#1c5285] select-none pointer-events-none" />
 
           {/* Center Simon Sparks S Monogram Logo */}
           <a
@@ -678,17 +678,17 @@ export default function PortfolioPage() {
             <img
               src="/images/sparks-logo.png"
               alt="Simon Sparks Logo"
-              className="w-7 sm:w-8 md:w-9 h-auto object-contain select-none pointer-events-none drop-shadow-[0_0_12px_rgba(56,189,248,0.35)]"
+              className="w-6 sm:w-8 md:w-9 h-auto object-contain select-none pointer-events-none drop-shadow-[0_0_12px_rgba(56,189,248,0.35)]"
             />
           </a>
 
           {/* Dot 3 */}
-          <span className="w-1.5 h-1.5 rounded-full bg-[#1c5285] select-none pointer-events-none" />
+          <span className="w-1 sm:w-1.5 h-1 sm:h-1.5 rounded-full bg-[#1c5285] select-none pointer-events-none" />
 
           {/* SHOP (Point 3) */}
           <button
             onClick={() => handlePageClick(2)}
-            className={`min-h-[44px] inline-flex items-center px-2 text-[11px] sm:text-[12px] md:text-[13px] font-sans font-bold tracking-[0.22em] uppercase transition-all duration-300 cursor-pointer ${
+            className={`min-h-[44px] inline-flex items-center px-1.5 sm:px-2 text-[10px] sm:text-[12px] md:text-[13px] font-sans font-bold tracking-[0.14em] sm:tracking-[0.22em] uppercase transition-all duration-300 cursor-pointer ${
               activePageIndex === 2 ? "text-[#f3bd8b] drop-shadow-[0_0_8px_rgba(243,189,139,0.5)]" : "text-[#abc8e6] hover:text-white"
             }`}
           >
@@ -696,12 +696,12 @@ export default function PortfolioPage() {
           </button>
 
           {/* Dot 4 */}
-          <span className="w-1.5 h-1.5 rounded-full bg-[#1c5285] select-none pointer-events-none" />
+          <span className="w-1 sm:w-1.5 h-1 sm:h-1.5 rounded-full bg-[#1c5285] select-none pointer-events-none" />
 
           {/* CONTACTS (Point 4) */}
           <button
             onClick={() => handlePageClick(3)}
-            className={`min-h-[44px] inline-flex items-center px-2 text-[11px] sm:text-[12px] md:text-[13px] font-sans font-bold tracking-[0.22em] uppercase transition-all duration-300 cursor-pointer ${
+            className={`min-h-[44px] inline-flex items-center px-1.5 sm:px-2 text-[10px] sm:text-[12px] md:text-[13px] font-sans font-bold tracking-[0.14em] sm:tracking-[0.22em] uppercase transition-all duration-300 cursor-pointer ${
               activePageIndex === 3 ? "text-[#f3bd8b] drop-shadow-[0_0_8px_rgba(243,189,139,0.5)]" : "text-[#abc8e6] hover:text-white"
             }`}
           >
@@ -879,7 +879,7 @@ export default function PortfolioPage() {
 
             {/* Line 2: REFO GANGGAWASA UTOMO Headline */}
             <h1
-              className="hero-anim-item hero-title font-serif text-[clamp(1.75rem,4.4vw,3.9rem)] font-light tracking-[0.03em] text-white uppercase leading-none whitespace-nowrap drop-shadow-[0_12px_45px_rgba(0,0,0,0.95)] select-none will-change-transform"
+              className="hero-anim-item hero-title font-serif text-[clamp(1.35rem,5.2vw,3.9rem)] font-light tracking-[0.03em] text-white uppercase leading-none whitespace-nowrap drop-shadow-[0_12px_45px_rgba(0,0,0,0.95)] select-none will-change-transform"
             >
               REFO GANGGAWASA UTOMO
             </h1>
@@ -904,7 +904,7 @@ export default function PortfolioPage() {
         {/* 3. WORK / PORTFOLIO SECTION (02 WORK) - 4 CARDS DEAD-CENTER IN VIEWPORT */}
         <section
           id="portfolio"
-          className="absolute inset-0 w-full h-full flex items-center justify-center px-4 sm:px-8 md:px-12 select-none will-change-transform overflow-hidden"
+          className="absolute inset-0 w-full h-full flex items-center justify-center pt-20 pb-8 px-3 sm:px-8 md:px-12 select-none will-change-transform overflow-y-auto sm:overflow-hidden no-scrollbar"
           style={{
             opacity: 0,
             visibility: 'hidden',
@@ -915,12 +915,12 @@ export default function PortfolioPage() {
           {/* 4-COLUMN BENTO SHOWCASE (1:1 REPLICATION FROM SIMON SPARKS) - CENTERED IN VIEWPORT */}
           <div
             onMouseLeave={() => setActiveCardIndex(null)}
-            className="relative w-full max-w-6xl mx-auto flex items-center justify-center"
+            className="relative w-full max-w-6xl mx-auto flex items-center justify-center my-auto"
           >
             <div className="relative w-full">
               {/* Ambient Contour Wireframe Backdrop with Topographic Hairlines */}
               <div
-                className="absolute inset-0 border border-cyan-900/30 rounded-2xl pointer-events-none -m-3 sm:-m-4 overflow-hidden will-change-transform"
+                className="absolute inset-0 border border-cyan-900/30 rounded-2xl pointer-events-none -m-2 sm:-m-4 overflow-hidden will-change-transform"
               >
                 {/* Topographic Contour Lines Backdrop (1:1 with Simon Sparks Video Frame 130-220) */}
                 <svg className="w-full h-full text-cyan-500/15" viewBox="0 0 1200 600" fill="none" preserveAspectRatio="none">
@@ -951,7 +951,7 @@ export default function PortfolioPage() {
 
               <div
                 onMouseLeave={() => setActiveCardIndex(null)}
-                className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 items-center"
+                className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-4 lg:gap-6 items-center"
               >
                 {[
                   {
@@ -1064,17 +1064,17 @@ export default function PortfolioPage() {
                       onPointerMove={handleTiltMove}
                       onPointerLeave={handleTiltLeave}
                       onClick={(e) => handleCardCategoryClick(card, e)}
-                      className={`t-tilt bento-anim-card relative rounded-xl border bento-card-transition cursor-pointer overflow-hidden flex flex-col justify-between p-5 sm:p-6 will-change-transform ${
+                      className={`t-tilt bento-anim-card relative rounded-xl border bento-card-transition cursor-pointer overflow-hidden flex flex-col justify-between p-3 sm:p-5 lg:p-6 will-change-transform ${
                         isActive
-                          ? 'border-cyan-400/90 bg-[#081538] shadow-[0_12px_45px_rgba(56,189,248,0.35)] z-20 min-h-[450px] sm:min-h-[475px]'
-                          : 'border-cyan-900/40 bg-[#060f28]/90 hover:border-cyan-500/50 hover:bg-[#081538]/80 min-h-[350px] sm:min-h-[375px] z-10'
+                          ? 'border-cyan-400/90 bg-[#081538] shadow-[0_12px_45px_rgba(56,189,248,0.35)] z-20 min-h-[220px] xs:min-h-[240px] sm:min-h-[450px] lg:min-h-[475px]'
+                          : 'border-cyan-900/40 bg-[#060f28]/90 hover:border-cyan-500/50 hover:bg-[#081538]/80 min-h-[175px] xs:min-h-[195px] sm:min-h-[350px] lg:min-h-[375px] z-10'
                       }`}
                     >
                       {/* Transitions.dev 3D Pointer Glare */}
                       <div className="t-tilt-glare" />
 
                       {/* Top Inverted Triangle Marker (Fades out smoothly when card is active) */}
-                      <div className={`flex justify-center transition-all duration-300 text-[10px] relative z-10 ${
+                      <div className={`flex justify-center transition-all duration-300 text-[8px] sm:text-[10px] relative z-10 ${
                         isActive ? 'opacity-0 -translate-y-2 pointer-events-none' : 'text-cyan-400/50 opacity-100 translate-y-0'
                       }`}>
                         ▼
@@ -1083,10 +1083,10 @@ export default function PortfolioPage() {
                       {/* Artwork Slide-Down Unroll (Active / Hover State) */}
                       <div className={`w-full bento-artwork-slider ${
                         isActive
-                          ? 'max-h-[260px] opacity-100 my-2 scale-100'
+                          ? 'max-h-[120px] sm:max-h-[260px] opacity-100 my-1 sm:my-2 scale-100'
                           : 'max-h-0 opacity-0 my-0 scale-95 pointer-events-none overflow-hidden'
                       }`}>
-                        <div className="relative w-full aspect-[3/4] max-w-[195px] sm:max-w-[215px] mx-auto rounded-lg overflow-hidden border border-cyan-400/40 shadow-2xl group/art">
+                        <div className="relative w-full aspect-[3/4] max-w-[110px] sm:max-w-[215px] mx-auto rounded-lg overflow-hidden border border-cyan-400/40 shadow-2xl group/art">
                           <img
                             src={card.image}
                             alt={card.title}
@@ -1095,8 +1095,8 @@ export default function PortfolioPage() {
                           <div className="absolute inset-0 bg-gradient-to-t from-[#040817]/75 via-transparent to-transparent pointer-events-none" />
                           {/* Play Overlay Button */}
                           <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover/art:opacity-100 transition-opacity bg-black/40">
-                            <div className="w-10 h-10 rounded-full bg-cyan-400 text-[#050814] flex items-center justify-center shadow-[0_0_20px_rgba(56,189,248,0.85)] hover:scale-110 transition-transform">
-                              <Play className="w-4 h-4 fill-current ml-0.5" />
+                            <div className="w-7 h-7 sm:w-10 sm:h-10 rounded-full bg-cyan-400 text-[#050814] flex items-center justify-center shadow-[0_0_20px_rgba(56,189,248,0.85)] hover:scale-110 transition-transform">
+                              <Play className="w-3 h-3 sm:w-4 sm:h-4 fill-current ml-0.5" />
                             </div>
                           </div>
                         </div>
@@ -1106,23 +1106,23 @@ export default function PortfolioPage() {
                       <div className={`w-full flex-1 flex flex-col items-center justify-center bento-monogram-slider ${
                         isActive
                           ? 'max-h-0 opacity-0 my-0 scale-90 pointer-events-none overflow-hidden'
-                          : 'max-h-[160px] opacity-100 my-4 scale-100'
+                          : 'max-h-[110px] sm:max-h-[160px] opacity-100 my-1 sm:my-4 scale-100'
                       }`}>
-                        <div className="w-20 h-20 sm:w-24 sm:h-24 flex items-center justify-center text-[#8e9ecb]/70 hover:text-white transition-colors duration-300">
+                        <div className="w-12 h-12 xs:w-14 xs:h-14 sm:w-24 sm:h-24 flex items-center justify-center text-[#8e9ecb]/70 hover:text-white transition-colors duration-300">
                           {card.monogram}
                         </div>
                         {/* Card Dot Marker */}
-                        <div className="w-1.5 h-1.5 rounded-full bg-[#1c5285] mt-6" />
+                        <div className="w-1.5 h-1.5 rounded-full bg-[#1c5285] mt-2 sm:mt-6" />
                       </div>
 
                       {/* Typography & Index */}
-                      <div className="text-center mt-2 select-none relative z-10">
-                        <h4 className={`font-mono text-xs tracking-[0.25em] font-bold uppercase transition-colors duration-300 ${
+                      <div className="text-center mt-1 sm:mt-2 select-none relative z-10">
+                        <h4 className={`font-mono text-[9px] xs:text-[10px] sm:text-xs tracking-[0.14em] sm:tracking-[0.25em] font-bold uppercase transition-colors duration-300 ${
                           isActive ? 'text-white drop-shadow-[0_2px_12px_rgba(56,189,248,0.4)]' : 'text-white/85'
                         }`}>
                           {card.title}
                         </h4>
-                        <div className={`font-mono text-[11px] tracking-[0.2em] font-bold mt-2 transition-colors duration-300 ${
+                        <div className={`font-mono text-[9px] xs:text-[10px] sm:text-[11px] tracking-[0.18em] sm:tracking-[0.2em] font-bold mt-1 sm:mt-2 transition-colors duration-300 ${
                           isActive ? 'text-cyan-400 drop-shadow-[0_0_8px_rgba(56,189,248,0.85)]' : 'text-[#f3bd8b]'
                         }`}>
                           {card.indexStr}
@@ -1130,7 +1130,7 @@ export default function PortfolioPage() {
                       </div>
 
                       {/* Active Glowing Cyan Underline Bar (Exact to video frame 150-210) */}
-                      <div className={`absolute bottom-0 left-5 right-5 h-[3px] rounded-full transition-all duration-500 origin-center ${
+                      <div className={`absolute bottom-0 left-3 sm:left-5 right-3 sm:right-5 h-[2px] sm:h-[3px] rounded-full transition-all duration-500 origin-center ${
                         isActive
                           ? 'bg-cyan-400 shadow-[0_0_15px_rgba(56,189,248,1)] opacity-100 scale-x-100 animate-bento-bar'
                           : 'opacity-0 scale-x-0 pointer-events-none'
@@ -1138,7 +1138,7 @@ export default function PortfolioPage() {
 
                       {/* Inactive Bottom Notch / Resting Slot */}
                       {!isActive && (
-                        <div className="w-8 h-[2px] bg-cyan-950/70 rounded-full mx-auto mt-2 pointer-events-none" />
+                        <div className="w-6 sm:w-8 h-[2px] bg-cyan-950/70 rounded-full mx-auto mt-1 sm:mt-2 pointer-events-none" />
                       )}
                     </div>
                   );
