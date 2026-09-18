@@ -82,18 +82,18 @@ function postYt(iframe: HTMLIFrameElement | null, func: string, args: (string | 
 
 // Infinite Canvas Repeating Unit Dimensions & Responsive Scales
 export function getTileSizeForWidth(vw: number) {
-  if (vw < 480) return { tile: { w: 165, h: 228 }, slider: { w: 225, h: 310 } }; // Small mobile (e.g. iPhone 375-430px) - expansive 3x3 mosaic
-  if (vw < 768) return { tile: { w: 195, h: 268 }, slider: { w: 265, h: 365 } }; // Large mobile / Phablet
-  if (vw < 1024) return { tile: { w: 235, h: 324 }, slider: { w: 320, h: 440 } }; // Tablet
-  return { tile: { w: 275, h: 378 }, slider: { w: 380, h: 523 } }; // Desktop standard
+  if (vw < 640) return { tile: { w: 115, h: 158 }, slider: { w: 180, h: 248 } }; // Mobile (e.g. iPhone 375-430px) - expansive multi-row mosaic
+  if (vw < 840) return { tile: { w: 150, h: 206 }, slider: { w: 220, h: 303 } }; // Large mobile / Phablet / Mini tablet
+  if (vw < 1200) return { tile: { w: 190, h: 262 }, slider: { w: 270, h: 372 } }; // Tablet / Small laptop
+  return { tile: { w: 230, h: 317 }, slider: { w: 330, h: 454 } }; // Desktop expansive gallery
 }
 
-const DEFAULT_TILE_WIDTH = 275;
-const DEFAULT_TILE_HEIGHT = 378;
+const DEFAULT_TILE_WIDTH = 230;
+const DEFAULT_TILE_HEIGHT = 317;
 const TILE_GAP = 0; // Seamless borderless mosaic (all footage touches edge-to-edge)
 
-const DEFAULT_SLIDER_CARD_WIDTH = 380;
-const DEFAULT_SLIDER_CARD_HEIGHT = 523; // Matched aspect ratio (0.726)
+const DEFAULT_SLIDER_CARD_WIDTH = 330;
+const DEFAULT_SLIDER_CARD_HEIGHT = 454; // Matched aspect ratio (0.727)
 const SLIDER_CARD_GAP = 0; // Seamless continuous filmstrip
 
 const BLOCK_X_OFFSETS = [0, 1];
@@ -725,8 +725,9 @@ export default function CategoryShowcasePage({
         const lagX = Math.max(-8, Math.min(8, -velocityRef.current.vx * 4));
         const lagY = Math.max(-8, Math.min(8, -velocityRef.current.vy * 4));
 
-        const r0 = 65;
-        const r1 = 500;
+        const activeCardWidth = viewMode === 'slider' ? SLIDER_CARD_WIDTH : TILE_WIDTH;
+        const r0 = Math.min(65, activeCardWidth * 0.38);
+        const r1 = Math.min(500, activeCardWidth * 2.2);
         const rDiff = r1 - r0;
 
         let minDist = 9999;
@@ -821,7 +822,7 @@ export default function CategoryShowcasePage({
 
         // Live Video Auto-Play with Audio Fade-In (ONLY when card is in the exact center!)
         const centerTile = closestIdx !== -1 ? tiles[closestIdx] : null;
-        const centerTolerance = Math.min(65, TILE_WIDTH * 0.38);
+        const centerTolerance = Math.min(65, (viewMode === 'slider' ? SLIDER_CARD_WIDTH : TILE_WIDTH) * 0.38);
         const isAtColoredPoint = Boolean(centerTile && minDist < centerTolerance);
 
         if (
@@ -957,10 +958,14 @@ export default function CategoryShowcasePage({
         const tile = tiles[i];
         if (tile.dist === undefined) continue;
         const dist = tile.dist;
+        const activeCardWidth = viewMode === 'slider' ? SLIDER_CARD_WIDTH : TILE_WIDTH;
+        const r0 = Math.min(65, activeCardWidth * 0.38);
+        const r1 = Math.min(500, activeCardWidth * 2.2);
+        const rDiff = r1 - r0;
         let baseFactor = 0;
-        if (dist <= 65) baseFactor = 1.0;
-        else if (dist < 500) {
-          const t = (dist - 65) / (500 - 65);
+        if (dist <= r0) baseFactor = 1.0;
+        else if (dist < r1) {
+          const t = (dist - r0) / rDiff;
           baseFactor = 0.5 * (1 + Math.cos(t * Math.PI));
         }
         const finalFactor = i === closestIdx ? baseFactor : baseFactor * otherCardAllowance;
@@ -1082,7 +1087,8 @@ export default function CategoryShowcasePage({
             const cardCenterX = screenX + tile.width / 2;
             const cardCenterY = screenY + tile.height / 2;
             const dist = Math.hypot(cardCenterX - scX, cardCenterY - scY);
-            tile.colorOverlayEl.style.opacity = dist < 70 ? '1' : '0';
+            const centerDist = Math.min(70, TILE_WIDTH * 0.38);
+            tile.colorOverlayEl.style.opacity = dist < centerDist ? '1' : '0';
             const normX = (cardCenterX - scX) / scX;
             const normY = (cardCenterY - scY) / scY;
             const px = Math.max(-28, Math.min(28, -normX * 18));
@@ -1162,7 +1168,8 @@ export default function CategoryShowcasePage({
         const screenX = tile.localX + curWx;
         const cardCenterX = screenX + tile.width / 2;
         const dist = Math.abs(cardCenterX - scX);
-        const finalOpacity = dist < 70 ? 1 : 0;
+        const centerDist = Math.min(70, SLIDER_CARD_WIDTH * 0.38);
+        const finalOpacity = dist < centerDist ? 1 : 0;
         tile.colorOverlayEl.style.opacity = String(finalOpacity);
         tile.lastOpacity = finalOpacity;
         const normX = (cardCenterX - scX) / scX;
@@ -1840,7 +1847,8 @@ export default function CategoryShowcasePage({
                       const cardCenterX = localX + curWx + TILE_WIDTH / 2;
                       const cardCenterY = localY + curWy + TILE_HEIGHT / 2;
                       const dist = Math.hypot(cardCenterX - scX, cardCenterY - scY);
-                      initialGridOpacity = dist < 70 ? 1 : 0;
+                      const centerDist = Math.min(70, TILE_WIDTH * 0.38);
+                      initialGridOpacity = dist < centerDist ? 1 : 0;
                       const normX = (cardCenterX - scX) / scX;
                       const normY = (cardCenterY - scY) / scY;
                       initialGridPx = Math.max(-28, Math.min(28, -normX * 18));
@@ -1954,7 +1962,8 @@ export default function CategoryShowcasePage({
                   const screenX = localX + curWx;
                   const cardCenterX = screenX + SLIDER_CARD_WIDTH / 2;
                   const dist = Math.abs(cardCenterX - scX);
-                  initialOpacity = dist < 70 ? 1 : 0;
+                  const centerDist = Math.min(70, SLIDER_CARD_WIDTH * 0.38);
+                  initialOpacity = dist < centerDist ? 1 : 0;
                   const normX = (cardCenterX - scX) / scX;
                   initialPx = Math.max(-28, Math.min(28, -normX * 18));
                 }
